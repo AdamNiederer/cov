@@ -87,7 +87,6 @@
 
 (defun gcov-set-overlays ()
   (interactive)
-  (gcov-clear-overlays)
   (let* ((lines (mapcar 'gcov-parse (gcov-read (buffer-file-name))))
          (max (gcov-l-max (mapcar 'gcov-second lines))))
     (while (< 0 (list-length lines))
