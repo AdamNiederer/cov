@@ -9,20 +9,31 @@
 (defun gcov-second (list)
   (nth 1 list))
 
+(defgroup gcov-faces nil
+  "Faces for gcov."
+  :group 'gcov
+  :group 'faces)
+
 (defface gcov-heavy-face
   '((((class color)) :foreground "red"))
-  ;; :group 'gcov
-  "Face used on the fringe indicator for successful evaluation.")
+  "Face used on the fringe indicator for successful evaluation."
+  :group 'gcov-faces)
 
 (defface gcov-med-face
   '((((class color)) :foreground "yellow"))
   ;;:group 'gcov
-  "Face used on the fringe indicator for successful evaluation.")
+  "Face used on the fringe indicator for successful evaluation."
+  :group 'gcov-faces)
 
 (defface gcov-light-face
   '((((class color)) :foreground "green"))
-  ;;:group 'gcov
-  "Face used on the fringe indicator for successful evaluation.")
+  "Face used on the fringe indicator for successful evaluation."
+  :group 'gcov-faces)
+
+(defface gcov-none-face
+  '((((class color)) :foreground "blue"))
+  "Face used on the fringe indicator for no evaluation."
+  :group 'gcov-faces)
 
 (defvar gcov-high-threshold .85)
 (defvar gcov-med-threshold .45)
@@ -38,7 +49,7 @@
   "Read a gcov file, filter unused lines, and return a list of lines"
   (remove-if-not
    (lambda (str)
-     (s-matches? "[0-9]+:" (s-left 6 (s-trim-left str))))
+     (s-matches? "[0-9#]+:" (s-left 6 (s-trim-left str))))
    (read-lines (format "%s.gcov" file-path))))
 
 ;; (gcov-read "strings.c")
@@ -69,6 +80,8 @@
                'gcov-heavy-face)
               ((< gcov-med-threshold (/ n (float max)))
                'gcov-med-face)
+              ((< n 1)
+               'gcov-none-face)
               (t 'gcov-light-face)))
   (propertize "f" 'display `(left-fringe empty-line ,face)))
 
