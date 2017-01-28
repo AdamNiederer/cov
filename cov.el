@@ -38,7 +38,7 @@
   "Read a gcov file, filter unused lines, and return a list of lines"
   (remove-if-not
    (lambda (str)
-     (s-matches? "[0-9#]+:" (s-left 6 (s-trim-left str))))
+     (s-matches? "[0-9]+:" (s-left 6 (s-trim-left str))))
    (read-lines (format "%s.gcov" file-path))))
 
 ;; (gcov-read "strings.c")
@@ -66,10 +66,10 @@
 (defun gcov-get-fringe (n max)
   (setq face
         (cond ((< gcov-high-threshold (/ n (float max)))
-               'gcov-med-face)
+               'gcov-heavy-face)
               ((< gcov-med-threshold (/ n (float max)))
-               'gcov-light-face)
-              (t 'gcov-heavy-face)))
+               'gcov-med-face)
+              (t 'gcov-light-face)))
   (propertize "f" 'display `(left-fringe empty-line ,face)))
 
 (gcov-get-fringe 29 30)
