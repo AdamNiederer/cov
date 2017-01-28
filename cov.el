@@ -97,4 +97,27 @@
 ;;(gcov-make-overlay 60 (gcov-get-fringe 5 15))
 ;;gcov-overlays
 
+(defun gcov-update ()
+  "Turn on gcov-mode."
+  (interactive)
+  (gcov-clear-overlays)
+  (gcov-set-overlays))
+
+(defun gcov-turn-on ()
+  "Turn on gcov-mode."
+  (gcov-set-overlays))
+
+(defun gcov-turn-off ()
+  "Turn off gcov-mode."
+  (gcov-clear-overlays))
+
+;;;###autoload
+(define-minor-mode gcov-mode
+  "Minor mode for gcov."
+  :lighter " gcov"
+  (progn
+    (if gcov-mode
+        (gcov-turn-on)
+      (gcov-turn-off))))
+
 (provide 'cov)
