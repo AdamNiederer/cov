@@ -61,44 +61,39 @@
 
 (defun gcov-make-overlay (line fringe)
   "Create an overlay for the line"
-  (setq ol-front-mark
-        (save-excursion
-          (goto-line line)
-          (point-marker)))
-  (setq ol-back-mark
-        (save-excursion
-          (goto-line line)
-          (end-of-line)
-          (point-marker)))
-  (setq ol (make-overlay ol-front-mark ol-back-mark))
-  (overlay-put ol 'before-string fringe)
-  ol)
+  (let* ((ol-front-mark
+          (save-excursion
+            (goto-line line)
+            (point-marker)))
+         (ol-back-mark
+          (save-excursion
+            (goto-line line)
+            (end-of-line)
+            (point-marker)))
+         (ol (make-overlay ol-front-mark ol-back-mark)))
+    (overlay-put ol 'before-string fringe)
+    ol))
 
 (defun gcov-get-fringe (n max)
-  (setq face
-        (cond ((< gcov-high-threshold (/ n (float max)))
-               'gcov-heavy-face)
-              ((< gcov-med-threshold (/ n (float max)))
-               'gcov-med-face)
-              ((< n 1)
-               'gcov-none-face)
-              (t 'gcov-light-face)))
-  (propertize "f" 'display `(left-fringe empty-line ,face)))
-
-(gcov-get-fringe 29 30)
-(> gcov-high-threshold (/ 28 (float 30)))
+  (let ((face
+         (cond ((< gcov-high-threshold (/ n (float max)))
+                'gcov-heavy-face)
+               ((< gcov-med-threshold (/ n (float max)))
+                'gcov-med-face)
+               ((< n 1)
+                'gcov-none-face)
+               (t 'gcov-light-face))))
+    (propertize "f" 'display `(left-fringe empty-line ,face))))
 
 (defun gcov-set-overlays ()
   (interactive)
-  (clear-overlays)
-  (setq lines (mapcar 'gcov-parse (gcov-read (buffer-file-name))))
-  (setq max (gcov-l-max (mapcar 'gcov-second lines)))
-  (print max)
-  (while (< 0 (list-length lines))
-    (setq line (pop lines))
-    (setq overlay (gcov-make-overlay (first line) (gcov-get-fringe (gcov-second line) max)))
-    (setq gcov-overlays (cons overlay gcov-overlays)))
-  (list-length lines))
+  (gcov-clear-overlays)
+  (let* ((lines (mapcar 'gcov-parse (gcov-read (buffer-file-name))))
+         (max (gcov-l-max (mapcar 'gcov-second lines))))
+    (while (< 0 (list-length lines))
+      (let* ((line (pop lines))
+             (overlay (gcov-make-overlay (first line) (gcov-get-fringe (gcov-second line) max))))
+        (setq gcov-overlays (cons overlay gcov-overlays))))))
 
 (defun gcov-clear-overlays ()
   (interactive)
