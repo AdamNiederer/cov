@@ -43,7 +43,7 @@
   "Read a gcov file, filter unused lines, and return a list of lines"
   (remove-if-not
    (lambda (str)
-     (s-matches? "[0-9]+:" (s-left 5 (s-trim-left str))))
+     (s-matches? "[0-9#]+:" (s-left 6 (s-trim-left str))))
    (read-lines (format "%s.gcov" file-path))))
 
 ; (gcov-read "strings.c")
@@ -57,13 +57,13 @@
   "Create an overlay for the line"
   (setq ol-front-mark
 	(save-excursion
-	  (goto-line line)
-	  (point-marker)))
+     (goto-line line)
+     (point-marker)))
   (setq ol-back-mark
 	(save-excursion
-	  (goto-line line)
-	  (end-of-line)
-	  (point-marker)))
+     (goto-line line)
+     (end-of-line)
+     (point-marker)))
   (setq ol (make-overlay ol-front-mark ol-back-mark))
   (overlay-put ol 'before-string fringe)
   ol)
@@ -71,10 +71,10 @@
 (defun gcov-get-fringe (n max)
   (setq face
 	(cond ((< gcov-high-threshold (/ n (float max)))
-	       'gcov-heavy-face)
-	      ((< gcov-med-threshold (/ n (float max)))
-	       'gcov-med-face)
-	      (t 'gcov-light-face)))
+          'gcov-med-face)
+         ((< gcov-med-threshold (/ n (float max)))
+          'gcov-light-face)
+         (t 'gcov-heavy-face)))
   (propertize "f" 'display `(left-fringe empty-line ,face)))
 
 (gcov-get-fringe 29 30)
