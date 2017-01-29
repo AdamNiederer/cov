@@ -100,6 +100,8 @@ Function:
 
 Make the variable buffer-local, so it can be set per project, e.g. in a .dir-locals.el file, by adding
 (make-variable-buffer-local 'gcov-coverage-file-paths) in your init.el.")
+(defvar-local gcov-coverage-file nil
+  "Last located cverage file and tool.")
 (defvar gcov-high-threshold .85)
 (defvar gcov-med-threshold .45)
 (defvar gcov-overlays '())
@@ -134,6 +136,13 @@ The function iterates over `gcov-coverage-file-path' for path candidates or loca
                    (gcov--locate-coverage-path file-dir file-name path-or-fun)
                  (funcall path-or-fun file-dir file-name)))
              gcov-coverage-file-paths)))
+
+(defun gcov-coverage ()
+  "Return coverage file and tool as a cons cell of the form (COV-FILE-PATH . COVERAGE-TOOL) for current buffer.
+
+If `gcov-coverage-file' is non nil, the value of that variable is returned. Otherwise `gcov-locate-coverage' is called."
+  (or gcov-coverage-file
+      (setq gcov-coverage-file (gcov-locate-coverage (f-this-file)))))
 
 (defun gcov-read (file-path)
   "Read a gcov file, filter unused lines, and return a list of lines"
@@ -175,7 +184,7 @@ The function iterates over `gcov-coverage-file-path' for path candidates or loca
 
 (defun gcov-set-overlays ()
   (interactive)
-  (let ((gcov (gcov-locate-coverage (f-this-file))))
+  (let ((gcov (gcov-coverage)))
     (if gcov
         (let* ((lines (mapcar 'gcov-parse (gcov-read (car gcov))))
                (max (gcov-l-max (mapcar 'gcov-second lines))))
