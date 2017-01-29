@@ -106,7 +106,7 @@ Make the variable buffer-local, so it can be set per project, e.g. in a .dir-loc
 (defvar gcov-med-threshold .45)
 (defvar gcov-overlays '())
 
-(defun read-lines (file-path)
+(defun gcov--read-lines (file-path)
   "Return a list of lines"
   (with-temp-buffer
     (insert-file-contents file-path)
@@ -125,7 +125,7 @@ Make the variable buffer-local, so it can be set per project, e.g. in a .dir-loc
                (and file (cons file tool))))
            gcov-coverage-alist))
 
-(defun gcov-locate-coverage (file-path)
+(defun gcov--locate-coverage (file-path)
   "Locate coverage file of given source file FILE-PATH.
 
 The function iterates over `gcov-coverage-file-path' for path candidates or locate functions. The first found file will be returned as a cons cell of the form (COV-FILE-PATH . COVERAGE-TOOL). If no file is found nil is returned."
@@ -137,19 +137,19 @@ The function iterates over `gcov-coverage-file-path' for path candidates or loca
                  (funcall path-or-fun file-dir file-name)))
              gcov-coverage-file-paths)))
 
-(defun gcov-coverage ()
+(defun gcov--coverage ()
   "Return coverage file and tool as a cons cell of the form (COV-FILE-PATH . COVERAGE-TOOL) for current buffer.
 
-If `gcov-coverage-file' is non nil, the value of that variable is returned. Otherwise `gcov-locate-coverage' is called."
+If `gcov-coverage-file' is non nil, the value of that variable is returned. Otherwise `gcov--locate-coverage' is called."
   (or gcov-coverage-file
-      (setq gcov-coverage-file (gcov-locate-coverage (f-this-file)))))
+      (setq gcov-coverage-file (gcov--locate-coverage (f-this-file)))))
 
 (defun gcov-read (file-path)
   "Read a gcov file, filter unused lines, and return a list of lines"
   (remove-if-not
    (lambda (str)
      (s-matches? "[0-9#]+:" (s-left 6 (s-trim-left str))))
-   (read-lines file-path)))
+   (gcov--read-lines file-path)))
 
 (defun gcov-parse (string)
   "Returns a list of (line-num, times-ran)"
@@ -184,7 +184,7 @@ If `gcov-coverage-file' is non nil, the value of that variable is returned. Othe
 
 (defun gcov-set-overlays ()
   (interactive)
-  (let ((gcov (gcov-coverage)))
+  (let ((gcov (gcov--coverage)))
     (if gcov
         (let* ((lines (mapcar 'gcov-parse (gcov-read (car gcov))))
                (max (gcov-l-max (mapcar 'gcov-second lines))))

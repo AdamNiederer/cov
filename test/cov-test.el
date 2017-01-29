@@ -57,18 +57,18 @@
              actual
              nil))))
 
-;; gcov-locate-coverage
-(ert-deftest gcov-locate-coverage-test ()
+;; gcov--locate-coverage
+(ert-deftest gcov--locate-coverage-test ()
   (let* ((path test-path)
-         (actual (gcov-locate-coverage (format "%s/%s" path "test")))
+         (actual (gcov--locate-coverage (format "%s/%s" path "test")))
          (expected (cons (file-truename (format "%s/test.gcov" path)) 'gcov)))
     (should (equal
              actual
              expected))))
 
-(ert-deftest gcov-locate-coverage---wrong-file-test ()
+(ert-deftest gcov--locate-coverage---wrong-file-test ()
   (let* ((path test-path)
-         (actual (gcov-locate-coverage (format "%s/%s" path "wrong-file"))))
+         (actual (gcov--locate-coverage (format "%s/%s" path "wrong-file"))))
     (should (equal
              actual
              nil))))
