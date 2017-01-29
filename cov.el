@@ -36,11 +36,16 @@
   "Face used on the fringe indicator for no evaluation."
   :group 'gcov-faces)
 
-(defvar-local gcov-coverage-file-extension ".gcov"
-  "File extension used to locate coverage files.
+(defvar gcov-coverage-alist '((".gcov" . 'gcov))
+  "Alist of coverage tool and file postfix.
 
-This variable becomes buffer-local when set, so it can be set per project, e.g. in a .dir-locals.el file.")
-(defvar-local gcov-coverage-file-paths '("." "cov")
+Each element looks like (FILE-POSTIX . COVERAGE-TOOL). If a file with
+FILE-POSTIX appended to the buffer-file-name is found is is assumed
+that the specified COVERAGE-TOOL has created the data.
+
+Currently the only supported COVERAGE-TOOL is gcov.")
+
+(defvar gcov-coverage-file-paths '(".")
   "List of file paths to use to search for coverage files.
 
 Relative paths:
@@ -56,9 +61,10 @@ Function:
                                                               file-dir file-name
                                                               gcov-coverage-file-extension)))
                                              (and (file-exists-p try)
-                                                  (file-truename try))))))
+                                                  (cons (file-truename try) 'gcov))))))
 
-This variable becomes buffer-local when set, so it can be set per project, e.g. in a .dir-locals.el file.")
+Make the variable buffer-local, so it can be set per project, e.g. in a .dir-locals.el file, by adding
+(make-variable-buffer-local 'gcov-coverage-file-paths) in your init.el.")
 (defvar gcov-high-threshold .85)
 (defvar gcov-med-threshold .45)
 (defvar gcov-overlays '())
@@ -69,9 +75,17 @@ This variable becomes buffer-local when set, so it can be set per project, e.g. 
     (insert-file-contents file-path)
     (split-string (buffer-string) "\n" t nil)))
 
-(defun gcov--locate-coverage (file-dir file-name path)
-  (let ((try (format "%s%s/%s%s" file-dir path file-name gcov-coverage-file-extension)))
+(defun gcov---locate-coverage (file-dir file-name path extension)
+  (let ((try (format "%s%s/%s%s" file-dir path file-name extension)))
     (and (file-exists-p try) (file-truename try))))
+
+(defun gcov--locate-coverage (file-dir file-name path)
+  (cl-some (lambda (extension-tool)
+             (let* ((extension (car extension-tool))
+                    (tool (cdr extension-tool))
+                    (file (gcov---locate-coverage file-dir file-name path extension)))
+               (and file (cons file tool))))
+           gcov-coverage-alist))
 
 (defun gcov-locate-coverage (file-path)
   "Locate coverage file .gcov of given FILE-PATH."
@@ -124,13 +138,14 @@ This variable becomes buffer-local when set, so it can be set per project, e.g. 
 (defun gcov-set-overlays ()
   (interactive)
   (let ((gcov (gcov-locate-coverage (buffer-file-name))))
-    (when gcov
-      (let* ((lines (mapcar 'gcov-parse (gcov-read gcov)))
-             (max (gcov-l-max (mapcar 'gcov-second lines))))
-        (while (< 0 (list-length lines))
-          (let* ((line (pop lines))
-                 (overlay (gcov-make-overlay (first line) (gcov-get-fringe (gcov-second line) max))))
-            (setq gcov-overlays (cons overlay gcov-overlays))))))))
+    (if gcov
+        (let* ((lines (mapcar 'gcov-parse (gcov-read (car gcov))))
+               (max (gcov-l-max (mapcar 'gcov-second lines))))
+          (while (< 0 (list-length lines))
+            (let* ((line (pop lines))
+                   (overlay (gcov-make-overlay (first line) (gcov-get-fringe (gcov-second line) max))))
+              (setq gcov-overlays (cons overlay gcov-overlays)))))
+      (message "No coverage data found."))))
 
 (defun gcov-clear-overlays ()
   (interactive)
