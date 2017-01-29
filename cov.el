@@ -1,4 +1,5 @@
 (require 's)
+(require 'cl-extra)
 
 (defgroup gcov nil
   "The group for everything in cov.el")
@@ -35,6 +36,29 @@
   "Face used on the fringe indicator for no evaluation."
   :group 'gcov-faces)
 
+(defvar-local gcov-coverage-file-extension ".gcov"
+  "File extension used to locate coverage files.
+
+This variable becomes buffer-local when set, so it can be set per project, e.g. in a .dir-locals.el file.")
+(defvar-local gcov-coverage-file-paths '("." "cov")
+  "List of file paths to use to search for coverage files.
+
+Relative paths:
+ .      search in current directory
+ cov    search in subdirectory cov
+ ..     search in parent directory
+ ../cov search in subdirectory cov of parent directory
+Function:
+ A function or lambda that should get the buffer file dir and name as arguments and return truename path to the coverage file.
+ The following example sets a lambda that searches the coverage file in the current directory:
+  (setq gcov-coverage-file-paths (list #'(lambda (file-dir file-name)
+                                           (let ((try (format \"%s/%s%s\"
+                                                              file-dir file-name
+                                                              gcov-coverage-file-extension)))
+                                             (and (file-exists-p try)
+                                                  (file-truename try))))))
+
+This variable becomes buffer-local when set, so it can be set per project, e.g. in a .dir-locals.el file.")
 (defvar gcov-high-threshold .85)
 (defvar gcov-med-threshold .45)
 (defvar gcov-overlays '())
@@ -45,14 +69,26 @@
     (insert-file-contents file-path)
     (split-string (buffer-string) "\n" t nil)))
 
+(defun gcov--locate-coverage (file-dir file-name path)
+  (let ((try (format "%s%s/%s%s" file-dir path file-name gcov-coverage-file-extension)))
+    (and (file-exists-p try) (file-truename try))))
+
+(defun gcov-locate-coverage (file-path)
+  "Locate coverage file .gcov of given FILE-PATH."
+  (let ((file-dir (file-name-directory file-path))
+        (file-name (file-name-nondirectory file-path)))
+    (cl-some (lambda (x)
+               (if (stringp x)
+                   (gcov--locate-coverage file-dir file-name x)
+                 (funcall x file-dir file-name)))
+             gcov-coverage-file-paths)))
+
 (defun gcov-read (file-path)
   "Read a gcov file, filter unused lines, and return a list of lines"
   (remove-if-not
    (lambda (str)
      (s-matches? "[0-9#]+:" (s-left 6 (s-trim-left str))))
-   (read-lines (format "%s.gcov" file-path))))
-
-;; (gcov-read "strings.c")
+   (read-lines file-path)))
 
 (defun gcov-parse (string)
   "Returns a list of (line-num, times-ran)"
@@ -87,12 +123,14 @@
 
 (defun gcov-set-overlays ()
   (interactive)
-  (let* ((lines (mapcar 'gcov-parse (gcov-read (buffer-file-name))))
-         (max (gcov-l-max (mapcar 'gcov-second lines))))
-    (while (< 0 (list-length lines))
-      (let* ((line (pop lines))
-             (overlay (gcov-make-overlay (first line) (gcov-get-fringe (gcov-second line) max))))
-        (setq gcov-overlays (cons overlay gcov-overlays))))))
+  (let ((gcov (gcov-locate-coverage (buffer-file-name))))
+    (when gcov
+      (let* ((lines (mapcar 'gcov-parse (gcov-read gcov)))
+             (max (gcov-l-max (mapcar 'gcov-second lines))))
+        (while (< 0 (list-length lines))
+          (let* ((line (pop lines))
+                 (overlay (gcov-make-overlay (first line) (gcov-get-fringe (gcov-second line) max))))
+            (setq gcov-overlays (cons overlay gcov-overlays))))))))
 
 (defun gcov-clear-overlays ()
   (interactive)
