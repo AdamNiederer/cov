@@ -145,9 +145,6 @@ If `gcov-coverage-file' is non nil, the value of that variable is returned. Othe
       (setq gcov-coverage-file (gcov--locate-coverage (f-this-file)))))
 
 (defun gcov--keep-line? (line)
-  (s-matches? "\\s-+[0-9#]+:\\s-+[0-9#]+:" (s-left 16 line)))
-
-(defun gcov--keep-line? (line)
   (string-match "^\\s-+\\([0-9#]+\\):\\s-+\\([0-9#]+\\):" line))
 
 (defun gcov--read (file-path)
