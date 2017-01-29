@@ -201,12 +201,13 @@ If `gcov-coverage-file' is non nil, the value of that variable is returned. Othe
   (interactive)
   (let ((gcov (gcov--coverage)))
     (if gcov
-        (save-match-data
-          (let* ((lines (mapcar 'gcov--parse (gcov--read (car gcov))))
-                 (max (gcov-l-max (mapcar 'gcov-second lines))))
-            (while (< 0 (list-length lines))
-              (let ((line (pop lines)))
-                (gcov--set-overlay line max)))))
+        (let (lines max)
+          (save-match-data
+            (setq lines (mapcar 'gcov--parse (gcov--read (car gcov)))))
+          (setq max (gcov-l-max (mapcar 'gcov-second lines)))
+          (while (< 0 (list-length lines))
+            (let ((line (pop lines)))
+              (gcov--set-overlay line max))))
       (message "No coverage data found."))))
 
 (defun gcov-clear-overlays ()
