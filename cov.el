@@ -9,8 +9,8 @@
 
 ;; Keywords: coverage
 ;; Homepage: https://github.com/AdamNiederer/cov
-;; Package-Version: 0.1.0
-;; Package-Requires: ((emacs "24.4") (s "1.11.0"))
+;; Version: 0.1.0
+;; Package-Requires: ((emacs "24.4") (s "1.11.0") (f "0.18.2"))
 
 ;; This file is not part of GNU Emacs.
 
