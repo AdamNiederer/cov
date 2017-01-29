@@ -1,3 +1,37 @@
+;;; cov.el --- Show coverage gutter in  the fringe.
+
+;; Copyright (C) 2016-2017 Adam Niederer
+
+
+;; Author: Adam Niederer
+;; Maintainer: Adam Niederer
+;; Created: 12 Aug 2016
+
+;; Keywords: coverage
+;; Homepage: https://github.com/AdamNiederer/cov
+;; Package-Version: 0.1.0
+;; Package-Requires: ((emacs "24.4") (s "1.11.0"))
+
+;; This file is not part of GNU Emacs.
+
+;; This program is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;;
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+;; GNU General Public License for more details.
+;;
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;;; Code:
+
+(require 'f)
 (require 's)
 (require 'cl-extra)
 
@@ -36,7 +70,7 @@
   "Face used on the fringe indicator for no evaluation."
   :group 'gcov-faces)
 
-(defvar gcov-coverage-alist '((".gcov" . 'gcov))
+(defvar gcov-coverage-alist '((".gcov" . gcov))
   "Alist of coverage tool and file postfix.
 
 Each element looks like (FILE-POSTIX . COVERAGE-TOOL). If a file with
@@ -46,15 +80,16 @@ that the specified COVERAGE-TOOL has created the data.
 Currently the only supported COVERAGE-TOOL is gcov.")
 
 (defvar gcov-coverage-file-paths '(".")
-  "List of file paths to use to search for coverage files.
+  "List of file paths to use to search for coverage files as strings or function.
 
 Relative paths:
  .      search in current directory
  cov    search in subdirectory cov
  ..     search in parent directory
  ../cov search in subdirectory cov of parent directory
+
 Function:
- A function or lambda that should get the buffer file dir and name as arguments and return truename path to the coverage file.
+ A function or lambda that should get the buffer file dir and name as arguments and return eiter nil or the truename path to the coverage file and the corresponding coverage tool in a cons cell of the form (COV-FILE-PATH . COVERAGE-TOOL).
  The following example sets a lambda that searches the coverage file in the current directory:
   (setq gcov-coverage-file-paths (list #'(lambda (file-dir file-name)
                                            (let ((try (format \"%s/%s%s\"
@@ -75,26 +110,29 @@ Make the variable buffer-local, so it can be set per project, e.g. in a .dir-loc
     (insert-file-contents file-path)
     (split-string (buffer-string) "\n" t nil)))
 
-(defun gcov---locate-coverage (file-dir file-name path extension)
-  (let ((try (format "%s%s/%s%s" file-dir path file-name extension)))
+(defun gcov--locate-coverage-postfix (file-dir file-name path extension)
+  (let ((try (format "%s/%s/%s%s" file-dir path file-name extension)))
     (and (file-exists-p try) (file-truename try))))
 
-(defun gcov--locate-coverage (file-dir file-name path)
+(defun gcov--locate-coverage-path (file-dir file-name path)
+  "Locate coverage file .gcov of given FILE-PATH."
   (cl-some (lambda (extension-tool)
              (let* ((extension (car extension-tool))
                     (tool (cdr extension-tool))
-                    (file (gcov---locate-coverage file-dir file-name path extension)))
+                    (file (gcov--locate-coverage-postfix file-dir file-name path extension)))
                (and file (cons file tool))))
            gcov-coverage-alist))
 
 (defun gcov-locate-coverage (file-path)
-  "Locate coverage file .gcov of given FILE-PATH."
-  (let ((file-dir (file-name-directory file-path))
-        (file-name (file-name-nondirectory file-path)))
-    (cl-some (lambda (x)
-               (if (stringp x)
-                   (gcov--locate-coverage file-dir file-name x)
-                 (funcall x file-dir file-name)))
+  "Locate coverage file of given source file FILE-PATH.
+
+The function iterates over `gcov-coverage-file-path' for path candidates or locate functions. The first found file will be returned as a cons cell of the form (COV-FILE-PATH . COVERAGE-TOOL). If no file is found nil is returned."
+  (let ((file-dir (f-dirname file-path))
+        (file-name (f-filename file-path)))
+    (cl-some (lambda (path-or-fun)
+               (if (stringp path-or-fun)
+                   (gcov--locate-coverage-path file-dir file-name path-or-fun)
+                 (funcall path-or-fun file-dir file-name)))
              gcov-coverage-file-paths)))
 
 (defun gcov-read (file-path)
@@ -137,7 +175,7 @@ Make the variable buffer-local, so it can be set per project, e.g. in a .dir-loc
 
 (defun gcov-set-overlays ()
   (interactive)
-  (let ((gcov (gcov-locate-coverage (buffer-file-name))))
+  (let ((gcov (gcov-locate-coverage (f-this-file))))
     (if gcov
         (let* ((lines (mapcar 'gcov-parse (gcov-read (car gcov))))
                (max (gcov-l-max (mapcar 'gcov-second lines))))
@@ -151,11 +189,6 @@ Make the variable buffer-local, so it can be set per project, e.g. in a .dir-loc
   (interactive)
   (while (< 0 (list-length gcov-overlays))
     (delete-overlay (pop gcov-overlays))))
-
-;;(clear-overlays)
-;;(set-overlays)
-;;(gcov-make-overlay 60 (gcov-get-fringe 5 15))
-;;gcov-overlays
 
 (defun gcov-update ()
   "Turn on gcov-mode."
@@ -181,3 +214,4 @@ Make the variable buffer-local, so it can be set per project, e.g. in a .dir-loc
       (gcov-turn-off))))
 
 (provide 'cov)
+;;; cov.el ends here
