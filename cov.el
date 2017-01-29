@@ -10,7 +10,7 @@
 ;; Keywords: coverage
 ;; Homepage: https://github.com/AdamNiederer/cov
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "24.4") (s "1.11.0") (f "0.18.2"))
+;; Package-Requires: ((emacs "24.4") (f "0.18.2"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -214,6 +214,14 @@ If `gcov-coverage-file' is non nil, the value of that variable is returned. Othe
   (interactive)
   (while (< 0 (list-length gcov-overlays))
     (delete-overlay (pop gcov-overlays))))
+
+(defun gcov-visit-coverage-file ()
+  "Visit coverage file."
+  (interactive)
+  (let ((gcov (gcov--coverage)))
+    (if gcov
+        (find-file (car gcov))
+      (message "No coverage data found."))))
 
 (defun gcov-update ()
   "Turn on gcov-mode."
