@@ -34,12 +34,12 @@
 (require 'f)
 (require 'cl-lib)
 
-(defgroup gcov nil
+(defgroup cov nil
   "The group for everything in cov.el")
 
 (defgroup cov-faces nil
   "Faces for gcov."
-  :group 'gcov
+  :group 'cov
   :group 'faces)
 
 (defface cov-heavy-face
@@ -49,7 +49,7 @@
 
 (defface cov-med-face
   '((((class color)) :foreground "yellow"))
-  ;;:group 'gcov
+  ;;:group 'cov
   "Face used on the fringe indicator for successful evaluation."
   :group 'cov-faces)
 
@@ -181,7 +181,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
     (propertize "f" 'display `(left-fringe empty-line ,face))))
 
 (defun cov--help (n max percentage)
-  (format "gcov: executed %d times (~%.2f%% of highest)" n (* percentage 100)))
+  (format "cov: executed %d times (~%.2f%% of highest)" n (* percentage 100)))
 
 (defun cov--set-overlay (line max)
   (let* ((times-executed (nth 1 line))
@@ -231,7 +231,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
 
 ;;;###autoload
 (define-minor-mode cov-mode
-  "Minor mode for gcov."
+  "Minor mode for cov."
   :lighter " gcov"
   (progn
     (if cov-mode
