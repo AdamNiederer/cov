@@ -32,7 +32,6 @@
 ;;; Code:
 
 (require 'f)
-(require 's)
 (require 'cl-lib)
 
 (defgroup gcov nil
