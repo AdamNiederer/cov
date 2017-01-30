@@ -1,4 +1,5 @@
 ![GPLv3](https://img.shields.io/badge/license-GPLv3-brightgreen.svg)
+[![Build Status](https://travis-ci.org/AdamNiederer/cov.svg?branch=master)](https://travis-ci.org/AdamNiederer/cov)
 
 # cov
 `cov` shows code coverage data for your program in emacs. Currently, it only supports gcov output.
