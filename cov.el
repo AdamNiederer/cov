@@ -33,7 +33,7 @@
 
 (require 'f)
 (require 's)
-(require 'cl-extra)
+(require 'cl-lib)
 
 (defgroup gcov nil
   "The group for everything in cov.el")
@@ -149,7 +149,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
 
 (defun cov--read (file-path)
   "Read a gcov file, filter unused lines, and return a list of lines"
-  (remove-if-not
+  (cl-remove-if-not
    'cov--keep-line?
    (cov--read-lines file-path)))
 
@@ -192,7 +192,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
   (let* ((n (cov-second line))
          (percentage (/ n (float max)))
          (overlay (cov-make-overlay
-                   (first line)
+                   (cl-first line)
                    (cov--get-fringe n max percentage)
                    (cov--help n max percentage))))
     (setq cov-overlays (cons overlay cov-overlays))))
@@ -205,14 +205,14 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
           (save-match-data
             (setq lines (mapcar 'cov--parse (cov--read (car gcov)))))
           (setq max (cov-l-max (mapcar 'cov-second lines)))
-          (while (< 0 (list-length lines))
+          (while (< 0 (cl-list-length lines))
             (let ((line (pop lines)))
               (cov--set-overlay line max))))
       (message "No coverage data found."))))
 
 (defun cov-clear-overlays ()
   (interactive)
-  (while (< 0 (list-length cov-overlays))
+  (while (< 0 (cl-list-length cov-overlays))
     (delete-overlay (pop cov-overlays))))
 
 (defun cov-visit-coverage-file ()
