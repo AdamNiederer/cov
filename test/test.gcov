@@ -6,6 +6,7 @@
         -:    1:comment line
         -:    2:
       100:    3:a line executed 100%
+        1:    3-block  0
        86:    4:a line executed  86%
        85:    5:a line executed  85%
        84:    6:a line executed  84%

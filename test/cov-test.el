@@ -2,6 +2,25 @@
 
 (require 'cov)
 
+;; gcov--keep-line?
+(ert-deftest gcov--keep-line--test ()
+  (should-not (gcov--keep-line? "        -:   22:        ")))
+
+(ert-deftest gcov--keep-line--block-test ()
+  (should-not (gcov--keep-line? "        1:   21-block  0")))
+
+(ert-deftest gcov--keep-line--executed-test ()
+  (let ((line "        6:   24:        "))
+    (should (gcov--keep-line? line))
+    (should (equal (match-string 1 line) "6"))
+    (should (equal (match-string 2 line) "24"))))
+
+(ert-deftest gcov--keep-line--not-executed-test ()
+  (let ((line "    #####:   24:        "))
+    (should (gcov--keep-line? line))
+    (should (equal (match-string 1 line) "#####"))
+    (should (equal (match-string 2 line) "24"))))
+
 ;; gcov--locate-coverage-postfix
 (ert-deftest gcov--locate-coverage-postfix-test ()
   (let* ((path test-path)

@@ -10,7 +10,7 @@
 ;; Keywords: coverage
 ;; Homepage: https://github.com/AdamNiederer/cov
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "24.4") (s "1.11.0") (f "0.18.2"))
+;; Package-Requires: ((emacs "24.4") (f "0.18.2"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -39,10 +39,10 @@
   "The group for everything in cov.el")
 
 (defun gcov-l-max (list)
-  (eval (cons 'max list)))
+  (eval (cons 'max (cons 0 list))))
 
 (defun gcov-second (list)
-  (nth 1 list))
+  (nth 1 list))()
 
 (defgroup gcov-faces nil
   "Faces for gcov."
@@ -144,19 +144,21 @@ If `gcov-coverage-file' is non nil, the value of that variable is returned. Othe
   (or gcov-coverage-file
       (setq gcov-coverage-file (gcov--locate-coverage (f-this-file)))))
 
-(defun gcov-read (file-path)
+(defun gcov--keep-line? (line)
+  (string-match "^\\s-+\\([0-9#]+\\):\\s-+\\([0-9#]+\\):" line))
+
+(defun gcov--read (file-path)
   "Read a gcov file, filter unused lines, and return a list of lines"
   (remove-if-not
-   (lambda (str)
-     (s-matches? "[0-9#]+:" (s-left 6 (s-trim-left str))))
+   'gcov--keep-line?
    (gcov--read-lines file-path)))
 
-(defun gcov-parse (string)
+(defun gcov--parse (string)
   "Returns a list of (line-num, times-ran)"
-  `(,(string-to-number (substring string 10 15))
-    ,(string-to-number (substring string 0 10))))
+  `(,(string-to-number (match-string 2 string))
+    ,(string-to-number (match-string 1 string))))
 
-(defun gcov-make-overlay (line fringe)
+(defun gcov-make-overlay (line fringe help)
   "Create an overlay for the line"
   (let* ((ol-front-mark
           (save-excursion
@@ -169,35 +171,57 @@ If `gcov-coverage-file' is non nil, the value of that variable is returned. Othe
             (point-marker)))
          (ol (make-overlay ol-front-mark ol-back-mark)))
     (overlay-put ol 'before-string fringe)
+    (overlay-put ol 'help-echo help)
     ol))
 
-(defun gcov-get-fringe (n max)
+(defun gcov--get-fringe (n max percentage)
   (let ((face
-         (cond ((< gcov-high-threshold (/ n (float max)))
+         (cond ((< gcov-high-threshold percentage)
                 'gcov-heavy-face)
-               ((< gcov-med-threshold (/ n (float max)))
+               ((< gcov-med-threshold percentage)
                 'gcov-med-face)
                ((< n 1)
                 'gcov-none-face)
                (t 'gcov-light-face))))
     (propertize "f" 'display `(left-fringe empty-line ,face))))
 
+(defun gcov--help (n max percentage)
+  (format "gcov: executed %s times (~%s%%)" n (* percentage 100)))
+
+(defun gcov--set-overlay (line max)
+  (let* ((n (gcov-second line))
+         (percentage (/ n (float max)))
+         (overlay (gcov-make-overlay
+                   (first line)
+                   (gcov--get-fringe n max percentage)
+                   (gcov--help n max percentage))))
+    (setq gcov-overlays (cons overlay gcov-overlays))))
+
 (defun gcov-set-overlays ()
   (interactive)
   (let ((gcov (gcov--coverage)))
     (if gcov
-        (let* ((lines (mapcar 'gcov-parse (gcov-read (car gcov))))
-               (max (gcov-l-max (mapcar 'gcov-second lines))))
+        (let (lines max)
+          (save-match-data
+            (setq lines (mapcar 'gcov--parse (gcov--read (car gcov)))))
+          (setq max (gcov-l-max (mapcar 'gcov-second lines)))
           (while (< 0 (list-length lines))
-            (let* ((line (pop lines))
-                   (overlay (gcov-make-overlay (first line) (gcov-get-fringe (gcov-second line) max))))
-              (setq gcov-overlays (cons overlay gcov-overlays)))))
+            (let ((line (pop lines)))
+              (gcov--set-overlay line max))))
       (message "No coverage data found."))))
 
 (defun gcov-clear-overlays ()
   (interactive)
   (while (< 0 (list-length gcov-overlays))
     (delete-overlay (pop gcov-overlays))))
+
+(defun gcov-visit-coverage-file ()
+  "Visit coverage file."
+  (interactive)
+  (let ((gcov (gcov--coverage)))
+    (if gcov
+        (find-file (car gcov))
+      (message "No coverage data found."))))
 
 (defun gcov-update ()
   "Turn on gcov-mode."
