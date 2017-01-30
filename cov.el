@@ -10,7 +10,7 @@
 ;; Keywords: coverage gcov c
 ;; Homepage: https://github.com/AdamNiederer/cov
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "24.4") (f "0.18.2"))
+;; Package-Requires: ((emacs "24.4") (f "0.18.2") (s "1.11.0"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -100,10 +100,11 @@ Function:
 Make the variable buffer-local, so it can be set per project, e.g. in a .dir-locals.el file, by adding
 (make-variable-buffer-local 'cov-coverage-file-paths) in your init.el.")
 (defvar-local cov-coverage-file nil
-  "Last located cverage file and tool.")
+  "Last located coverage file and tool.")
 (defvar cov-high-threshold .85)
 (defvar cov-med-threshold .45)
 (defvar cov-overlays '())
+(defconst cov-line-re "^ +\\([0-9#]+\\):\\s-+\\([0-9#]+\\):")
 
 (defun cov--read-lines (file-path)
   "Return a list of lines"
@@ -144,7 +145,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
       (setq cov-coverage-file (cov--locate-coverage (f-this-file)))))
 
 (defun cov--keep-line? (line)
-  (string-match "^\\s-+\\([0-9#]+\\):\\s-+\\([0-9#]+\\):" line))
+  (s-matches? cov-line-re line))
 
 (defun cov--read (file-path)
   "Read a gcov file, filter unused lines, and return a list of lines"
@@ -154,8 +155,8 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
 
 (defun cov--parse (string)
   "Returns a list of (line-num, times-ran)"
-  `(,(string-to-number (match-string 2 string))
-    ,(string-to-number (match-string 1 string))))
+  `(,(string-to-number (nth 2 (s-match cov-line-re string)))
+    ,(string-to-number (nth 1 (s-match cov-line-re string)))))
 
 (defun cov-make-overlay (line fringe help)
   "Create an overlay for the line"
@@ -174,6 +175,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
     ol))
 
 (defun cov--get-fringe (n max percentage)
+  "Returns the fringe with the correct face"
   (let ((face
          (cond ((< cov-high-threshold percentage)
                 'cov-heavy-face)
@@ -188,25 +190,22 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
   (format "gcov: executed %s times (~%s%%)" n (* percentage 100)))
 
 (defun cov--set-overlay (line max)
-  (let* ((n (cov-second line))
-         (percentage (/ n (float max)))
+  (let* ((times-executed (cov-second line))
+         (percentage (/ times-executed (float max)))
          (overlay (cov-make-overlay
                    (cl-first line)
-                   (cov--get-fringe n max percentage)
-                   (cov--help n max percentage))))
+                   (cov--get-fringe times-executed max percentage)
+                   (cov--help times-executed max percentage))))
     (setq cov-overlays (cons overlay cov-overlays))))
 
 (defun cov-set-overlays ()
   (interactive)
   (let ((gcov (cov--coverage)))
     (if gcov
-        (let (lines max)
-          (save-match-data
-            (setq lines (mapcar 'cov--parse (cov--read (car gcov)))))
-          (setq max (cov-l-max (mapcar 'cov-second lines)))
-          (while (< 0 (cl-list-length lines))
-            (let ((line (pop lines)))
-              (cov--set-overlay line max))))
+        (let* ((lines (mapcar 'cov--parse (cov--read (car gcov))))
+               (max (cov-l-max (mapcar 'cov-second lines))))
+          (dolist (line-data lines)
+            (cov--set-overlay line-data max)))
       (message "No coverage data found."))))
 
 (defun cov-clear-overlays ()

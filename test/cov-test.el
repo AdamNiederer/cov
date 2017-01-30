@@ -12,14 +12,12 @@
 (ert-deftest cov--keep-line--executed-test ()
   (let ((line "        6:   24:        "))
     (should (cov--keep-line? line))
-    (should (equal (match-string 1 line) "6"))
-    (should (equal (match-string 2 line) "24"))))
+    (should (equal (cov--parse line) '(24 6)))))
 
 (ert-deftest cov--keep-line--not-executed-test ()
   (let ((line "    #####:   24:        "))
     (should (cov--keep-line? line))
-    (should (equal (match-string 1 line) "#####"))
-    (should (equal (match-string 2 line) "24"))))
+    (should (equal (cov--parse line) '(24 0)))))
 
 ;; cov--locate-coverage-postfix
 (ert-deftest cov--locate-coverage-postfix-test ()
