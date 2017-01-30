@@ -15,7 +15,17 @@ For now, load it in your init script
 This program assumes you have a standard gcov file for your current buffer. For example, if your current buffer is `/whatever/strings.c`, `cov` assumes there's a file called `/whatever/strings.c.gcov`
 
 ## Customization
-Soon! Nothing is hardcoded right now, so don't be scared to change any of the constants
+By default, cov will run in profiling mode. Lines which are executed a lot will be decorated with `cov-heavy-face`,
+while lines executed less will be decorated with `cov-med-face` and `cov-light-face`. Lines not executed at all will
+be decorated with `cov-none-face`.
+
+Setting `cov-coverage-mode` to `t` will run cov in coverage mode. In this mode, if a line is run, `cov-coverage-run-face`
+will be applied to the line, while `cov-coverage-not-run-face` will be applied to lines which were not run. Coverage mode
+should make finding uncovered lines slightly easier than profiling mode.
+
+- `cov-high-threshold` - If a line is run more than (`cov-high-threshold` * 100) percent of the time compared to the most-executed line, cov will decorate it with `cov-heavy-face`.
+- `cov-med-threshold` - If a line is run more than (`cov-med-threshold` * 100) percent of the time compared to the most-executed line, cov will decorate it with `cov-med-face`. This should be less than `cov-heavy-face`
+- `cov-coverage-mode` - If set, cov will ignore execution frequencies and simply decorate whether a line was executed. Executed lines are decorated with `cov-coverage-run-face`, while lines not-executed lines are decorated with `cov-coverage-not-run-face`
 
 ### Coverage File
 The coverage tool adds a postfix to the source file name to store the coverage data. For example, `gcov` adds `.gcov` to the file name. This postfix is the default that `gcov-mode` uses in order to locate the data.

@@ -2,7 +2,6 @@
 
 ;; Copyright (C) 2016-2017 Adam Niederer
 
-
 ;; Author: Adam Niederer
 ;; Maintainer: Adam Niederer
 ;; Created: 12 Aug 2016
@@ -38,29 +37,66 @@
   "The group for everything in cov.el")
 
 (defgroup cov-faces nil
-  "Faces for gcov."
+  "Faces for gcov.")
+
+(defcustom cov-high-threshold .85
+  "The threshold at which a line will be painted with the heavy-use face, as a
+percentage of the most-run line."
+  :tag "Cov heavy-use threshold"
   :group 'cov
-  :group 'faces)
+  :type 'float)
+
+(defcustom cov-med-threshold .45
+  "The threshold at which a line will be painted with the medium-use face, as a
+percentage of the most-run line."
+  :tag "Cov heavy-use threshold"
+  :group 'cov
+  :type 'float)
+
+(defcustom cov-coverage-mode nil
+  "Whether to decorate all covered lines with a green fringe, and all non-covered
+lines with a red fringe"
+  :tag "Cov coverage mode"
+  :group 'cov
+  :type 'boolean)
 
 (defface cov-heavy-face
   '((((class color)) :foreground "red"))
-  "Face used on the fringe indicator for successful evaluation."
+  "Fringe indicator face used for heavily-run lines See `cov-high-threshold'."
+  :tag "Cov heavy-use face"
   :group 'cov-faces)
 
 (defface cov-med-face
   '((((class color)) :foreground "yellow"))
-  ;;:group 'cov
-  "Face used on the fringe indicator for successful evaluation."
+  "Fringe indicator face used for commonly-run lines See `cov-med-threshold'."
+  :tag "Cov medium-use face"
   :group 'cov-faces)
 
 (defface cov-light-face
   '((((class color)) :foreground "green"))
-  "Face used on the fringe indicator for successful evaluation."
+  "Fringe indicator face used for rarely-run lines. This face is applied if no
+other face is applied."
+  :tag "Cov light-use face"
   :group 'cov-faces)
 
 (defface cov-none-face
   '((((class color)) :foreground "blue"))
-  "Face used on the fringe indicator for no evaluation."
+  "Fringe indicator face used for lines which were not run."
+  :tag "Cov never-used face"
+  :group 'cov-faces)
+
+(defface cov-coverage-run-face
+  '((((class color)) :foreground "green"))
+  "Fringe indicator face used in coverage mode for lines which were run. See
+`cov-coverage-mode'"
+  :tag "Cov coverage mode run face"
+  :group 'cov-faces)
+
+(defface cov-coverage-not-run-face
+  '((((class color)) :foreground "red"))
+  "Fringe indicator face used in coverage mode for lines which were not run. See
+`cov-coverage-mode'"
+  :tag "Cov coverage mode not-run face"
   :group 'cov-faces)
 
 (defvar cov-coverage-alist '((".gcov" . gcov))
@@ -95,8 +131,7 @@ Make the variable buffer-local, so it can be set per project, e.g. in a .dir-loc
 (make-variable-buffer-local 'cov-coverage-file-paths) in your init.el.")
 (defvar-local cov-coverage-file nil
   "Last located coverage file and tool.")
-(defvar cov-high-threshold .85)
-(defvar cov-med-threshold .45)
+
 (defvar cov-overlays '())
 (defconst cov-line-re "^ +\\([0-9#]+\\):\\s-+\\([0-9#]+\\):")
 
@@ -168,19 +203,27 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
     (overlay-put ol 'help-echo help)
     ol))
 
-(defun cov--get-fringe (n max percentage)
-  "Returns the fringe with the correct face"
-  (let ((face
-         (cond ((< cov-high-threshold percentage)
-                'cov-heavy-face)
-               ((< cov-med-threshold percentage)
-                'cov-med-face)
-               ((< n 1)
-                'cov-none-face)
-               (t 'cov-light-face))))
-    (propertize "f" 'display `(left-fringe empty-line ,face))))
+(defun cov--get-face (percentage)
+    "Return the appropriate face to color the line given use preferences and the
+code's execution frequency"
+    (cond
+     ((and cov-coverage-mode (> percentage 0))
+      'cov-coverage-run-face)
+     ((and cov-coverage-mode (= percentage 0))
+      'cov-coverage-not-run-face)
+     ((< cov-high-threshold percentage)
+      'cov-heavy-face)
+     ((< cov-med-threshold percentage)
+      'cov-med-face)
+     ((> percentage 0)
+      'cov-light-face)
+     (t 'cov-none-face)))
 
-(defun cov--help (n max percentage)
+(defun cov--get-fringe (percentage)
+  "Returns the fringe with the correct face"
+  (propertize "f" 'display `(left-fringe empty-line ,(cov--get-face percentage))))
+
+(defun cov--help (n percentage)
   (format "cov: executed %d times (~%.2f%% of highest)" n (* percentage 100)))
 
 (defun cov--set-overlay (line max)
@@ -188,8 +231,8 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
          (percentage (/ times-executed (float max)))
          (overlay (cov-make-overlay
                    (cl-first line)
-                   (cov--get-fringe times-executed max percentage)
-                   (cov--help times-executed max percentage))))
+                   (cov--get-fringe percentage)
+                   (cov--help times-executed percentage))))
     (setq cov-overlays (cons overlay cov-overlays))))
 
 (defun cov-set-overlays ()
