@@ -42,7 +42,7 @@
   (eval (cons 'max (cons 0 list))))
 
 (defun gcov-second (list)
-  (nth 1 list))()
+  (nth 1 list))
 
 (defgroup gcov-faces nil
   "Faces for gcov."
