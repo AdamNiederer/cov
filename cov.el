@@ -150,7 +150,7 @@ If `gcov-coverage-file' is non nil, the value of that variable is returned. Othe
           (save-match-data
             (while more
               (beginning-of-line)
-              (when (looking-at "^\\s-+\\(\\([0-9#]+\\):\\s-+\\([0-9#]+\\)\\):")
+              (when (looking-at "^\\s-+\\(\\([0-9#]+\\):\\s-+\\([0-9]+\\)\\):")
                 (push (list (string-to-number (match-string-no-properties 3))
                             (string-to-number (match-string-no-properties 2))
                             (match-string-no-properties 1))
