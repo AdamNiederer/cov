@@ -240,7 +240,7 @@ code's execution frequency"
   (let ((gcov (cov--coverage)))
     (if gcov
         (let* ((lines (mapcar 'cov--parse (cov--read (car gcov))))
-               (max (reduce 'max (mapcar 'cl-second lines))))
+               (max (reduce 'max (cons 0 (mapcar 'cl-second lines)))))
           (dolist (line-data lines)
             (cov--set-overlay line-data max)))
       (message "No coverage data found."))))
