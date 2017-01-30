@@ -9,12 +9,13 @@
 (ert-deftest cov--keep-line--block-test ()
   (should-not (cov--keep-line? "        1:   21-block  0")))
 
-(ert-deftest cov--keep-line--executed-test ()
+;; cov--parse & cov--keep-line?
+(ert-deftest cov--parse--executed-test ()
   (let ((line "        6:   24:        "))
     (should (cov--keep-line? line))
     (should (equal (cov--parse line) '(24 6)))))
 
-(ert-deftest cov--keep-line--not-executed-test ()
+(ert-deftest cov--parse--not-executed-test ()
   (let ((line "    #####:   24:        "))
     (should (cov--keep-line? line))
     (should (equal (cov--parse line) '(24 0)))))
@@ -83,9 +84,28 @@
              actual
              expected))))
 
-(ert-deftest cov--locate-coverage---wrong-file-test ()
+(ert-deftest cov--locate-coverage-wrong-file-test ()
   (let* ((path test-path)
          (actual (cov--locate-coverage (format "%s/%s" path "wrong-file"))))
     (should (equal
              actual
              nil))))
+
+;; cov--get-face
+(ert-deftest cov--get-face-test ()
+  (let ((cov-coverage-mode nil)
+        (cov-high-threshold 0.85)
+        (cov-med-threshold 0.45))
+    (should (equal (cov--get-face 0.86) 'cov-heavy-face))
+    (should (equal (cov--get-face 0.46) 'cov-med-face))
+    (should (equal (cov--get-face 0.44) 'cov-light-face))
+    (should (equal (cov--get-face 0.0) 'cov-none-face))))
+
+(ert-deftest cov--get-coverage-mode-face-test ()
+  (let ((cov-coverage-mode t)
+        (cov-high-threshold 0.85)
+        (cov-med-threshold 0.45))
+    (should (equal (cov--get-face 0.86) 'cov-coverage-run-face))
+    (should (equal (cov--get-face 0.46) 'cov-coverage-run-face))
+    (should (equal (cov--get-face 0.44) 'cov-coverage-run-face))
+    (should (equal (cov--get-face 0.0) 'cov-coverage-not-run-face))))
