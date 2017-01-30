@@ -192,13 +192,15 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
 
 (defun cov--make-overlay (line fringe help)
   "Create an overlay for the line"
-  (let* ((ol-front-mark
-          (save-excursion
-            (goto-line line)
-            (point)))
-         (ol (make-overlay ol-front-mark ol-front-mark)))
+  (let (ol-front-mark ol-back-mark ol)
+    (save-excursion
+      (goto-line line)
+      (setq ol-front-mark (point))
+      (end-of-line)
+      (setq ol-back-mark (point)))
+    (setq ol (make-overlay ol-front-mark ol-back-mark))
     (overlay-put ol 'before-string fringe)
-    ;(overlay-put ol 'help-echo help)
+    (overlay-put ol 'help-echo help)
     ol))
 
 (defun cov--get-face (percentage)
@@ -222,7 +224,7 @@ code's execution frequency"
   (propertize "f" 'display `(left-fringe empty-line ,(cov--get-face percentage))))
 
 (defun cov--help (n percentage)
-  (format "gcov: executed %s times (~%s%%)" n (* percentage 100)))
+  (format "cov: executed %d times (~%.2f%% of highest)" n (* percentage 100)))
 
 (defun cov--set-overlay (line max)
   (let* ((times-executed (nth 1 line))
