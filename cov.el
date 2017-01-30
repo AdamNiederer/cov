@@ -42,7 +42,7 @@
   (eval (cons 'max (cons 0 list))))
 
 (defun gcov-second (list)
-  (nth 1 list))()
+  (nth 1 list))
 
 (defgroup gcov-faces nil
   "Faces for gcov."
@@ -106,12 +106,6 @@ Make the variable buffer-local, so it can be set per project, e.g. in a .dir-loc
 (defvar gcov-med-threshold .45)
 (defvar gcov-overlays '())
 
-(defun gcov--read-lines (file-path)
-  "Return a list of lines"
-  (with-temp-buffer
-    (insert-file-contents file-path)
-    (split-string (buffer-string) "\n" t nil)))
-
 (defun gcov--locate-coverage-postfix (file-dir file-name path extension)
   (let ((try (format "%s/%s/%s%s" file-dir path file-name extension)))
     (and (file-exists-p try) (file-truename try))))
@@ -144,19 +138,27 @@ If `gcov-coverage-file' is non nil, the value of that variable is returned. Othe
   (or gcov-coverage-file
       (setq gcov-coverage-file (gcov--locate-coverage (f-this-file)))))
 
-(defun gcov--keep-line? (line)
-  (string-match "^\\s-+\\([0-9#]+\\):\\s-+\\([0-9#]+\\):" line))
-
-(defun gcov--read (file-path)
+(defun gcov--parse (file-path)
   "Read a gcov file, filter unused lines, and return a list of lines"
-  (remove-if-not
-   'gcov--keep-line?
-   (gcov--read-lines file-path)))
+  (let ((more t)
+        matches)
+    (save-excursion
+      (with-current-buffer (find-file-noselect file-path)
+        (save-restriction
+          (widen)
+          (goto-char (point-min)) ;; needed in case the file is already open.
+          (save-match-data
+            (while more
+              (beginning-of-line)
+              (when (looking-at "^\\s-+\\(\\([0-9#]+\\):\\s-+\\([0-9#]+\\)\\):")
+                (push (list (string-to-number (match-string-no-properties 3))
+                            (string-to-number (match-string-no-properties 2))
+                            (match-string-no-properties 1))
+                      matches))
+              (setq more (= 0 (forward-line 1))))))))
+    matches))
 
-(defun gcov--parse (string)
-  "Returns a list of (line-num, times-ran)"
-  `(,(string-to-number (match-string 2 string))
-    ,(string-to-number (match-string 1 string))))
+;;(gcov--parse (car (gcov--coverage)))
 
 (defun gcov-make-overlay (line fringe help)
   "Create an overlay for the line"
@@ -185,8 +187,8 @@ If `gcov-coverage-file' is non nil, the value of that variable is returned. Othe
                (t 'gcov-light-face))))
     (propertize "f" 'display `(left-fringe empty-line ,face))))
 
-(defun gcov--help (n max percentage)
-  (format "gcov: executed %s times (~%s%%)" n (* percentage 100)))
+(defun gcov--help (n max percentage cov)
+  (format "gcov: executed %s times (~%s%%) %s" n (* percentage 100) cov))
 
 (defun gcov--set-overlay (line max)
   (let* ((n (gcov-second line))
@@ -194,17 +196,15 @@ If `gcov-coverage-file' is non nil, the value of that variable is returned. Othe
          (overlay (gcov-make-overlay
                    (first line)
                    (gcov--get-fringe n max percentage)
-                   (gcov--help n max percentage))))
+                   (gcov--help n max percentage (nth 2 line)))))
     (setq gcov-overlays (cons overlay gcov-overlays))))
 
 (defun gcov-set-overlays ()
   (interactive)
   (let ((gcov (gcov--coverage)))
     (if gcov
-        (let (lines max)
-          (save-match-data
-            (setq lines (mapcar 'gcov--parse (gcov--read (car gcov)))))
-          (setq max (gcov-l-max (mapcar 'gcov-second lines)))
+        (let* ((lines (gcov--parse (car gcov)))
+               (max (gcov-l-max (mapcar 'gcov-second lines))))
           (while (< 0 (list-length lines))
             (let ((line (pop lines)))
               (gcov--set-overlay line max))))
