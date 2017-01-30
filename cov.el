@@ -37,12 +37,6 @@
 (defgroup gcov nil
   "The group for everything in cov.el")
 
-(defun cov-l-max (list)
-  (eval (cons 'max (cons 0 list))))
-
-(defun cov-second (list)
-  (nth 1 list))
-
 (defgroup cov-faces nil
   "Faces for gcov."
   :group 'gcov
@@ -190,7 +184,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
   (format "gcov: executed %s times (~%s%%)" n (* percentage 100)))
 
 (defun cov--set-overlay (line max)
-  (let* ((times-executed (cov-second line))
+  (let* ((times-executed (nth 1 line))
          (percentage (/ times-executed (float max)))
          (overlay (cov-make-overlay
                    (cl-first line)
@@ -203,7 +197,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
   (let ((gcov (cov--coverage)))
     (if gcov
         (let* ((lines (mapcar 'cov--parse (cov--read (car gcov))))
-               (max (cov-l-max (mapcar 'cov-second lines))))
+               (max (reduce 'max (mapcar 'cl-second lines))))
           (dolist (line-data lines)
             (cov--set-overlay line-data max)))
       (message "No coverage data found."))))
