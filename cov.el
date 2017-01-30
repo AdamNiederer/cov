@@ -226,23 +226,37 @@ code's execution frequency"
 (defun cov--help (n percentage)
   (format "cov: executed %d times (~%.2f%% of highest)" n (* percentage 100)))
 
-(defun cov--set-overlay (line max)
+(defun cov--set-overlay (line max displacement)
   (let* ((times-executed (nth 1 line))
          (percentage (/ times-executed (float max)))
-         (overlay (cov-make-overlay
-                   (cl-first line)
+         (overlay (cov--make-overlay
+                   (- (cl-first line) displacement)
                    (cov--get-fringe percentage)
                    (cov--help times-executed percentage))))
     (setq cov-overlays (cons overlay cov-overlays))))
 
+(defun cov--calc-line-displacement ()
+  "Get line number displacement if buffer is narrowed."
+  (let ((start (point-min)))
+    (if (= start 1)
+        0
+      (save-excursion
+        (save-restriction
+          (widen)
+          (1- (line-number-at-pos start)))))))
+
 (defun cov-set-overlays ()
   (interactive)
-  (let ((gcov (cov--coverage)))
-    (if gcov
-        (let* ((lines (mapcar 'cov--parse (cov--read (car gcov))))
-               (max (reduce 'max (cons 0 (mapcar 'cl-second lines)))))
+  (let ((cov (cov--coverage)))
+    (if cov
+        (let* ((lines (cov--parse (cov--read (car cov))))
+               (max (reduce 'max (cons 0 (mapcar 'cl-second lines))))
+               (displacement (cov--calc-line-displacement))
+               (max-line (+ (line-number-at-pos (point-max)) displacement)))
           (dolist (line-data lines)
-            (cov--set-overlay line-data max)))
+            (when (and (> (car line-data) displacement)
+                       (<= (car line-data) max-line))
+              (cov--set-overlay line-data max displacement))))
       (message "No coverage data found."))))
 
 (defun cov-clear-overlays ()
