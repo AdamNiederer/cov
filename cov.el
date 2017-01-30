@@ -194,7 +194,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
   "Create an overlay for the line"
   (let (ol-front-mark ol-back-mark ol)
     (save-excursion
-      (goto-line line)
+      (goto-char (point-min)) (forward-line (1- line))
       (setq ol-front-mark (point))
       (end-of-line)
       (setq ol-back-mark (point)))
