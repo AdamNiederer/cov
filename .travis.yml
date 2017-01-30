@@ -1,0 +1,17 @@
+language: emacs-lisp
+sudo: required
+dist: trusty
+env:
+  - EMACS_VERSION=25.1
+before_install:
+  - mkdir -p $HOME/bin
+  - export PATH="$HOME/bin:$PATH"
+  - curl "https://raw.githubusercontent.com/flycheck/emacs-travis/master/emacs-travis.mk" > Makefile
+  - make install_emacs
+  - make install_cask
+install:
+  - cask install
+script:
+  - cask exec ert-runner
+notifications:
+  email: false

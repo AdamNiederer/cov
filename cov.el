@@ -1,16 +1,15 @@
-;;; cov.el --- Show coverage gutter in  the fringe.
+;;; cov.el --- Show coverage stats in the fringe.
 
 ;; Copyright (C) 2016-2017 Adam Niederer
-
 
 ;; Author: Adam Niederer
 ;; Maintainer: Adam Niederer
 ;; Created: 12 Aug 2016
 
-;; Keywords: coverage
+;; Keywords: coverage gcov c
 ;; Homepage: https://github.com/AdamNiederer/cov
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "24.4") (f "0.18.2"))
+;; Package-Requires: ((emacs "24.4") (f "0.18.2") (s "1.11.0"))
 
 ;; This file is not part of GNU Emacs.
 
@@ -32,45 +31,75 @@
 ;;; Code:
 
 (require 'f)
-(require 's)
-(require 'cl-extra)
+(require 'cl-lib)
 
-(defgroup gcov nil
+(defgroup cov nil
   "The group for everything in cov.el")
 
-(defun gcov-l-max (list)
-  (eval (cons 'max (cons 0 list))))
+(defgroup cov-faces nil
+  "Faces for cov.")
 
-(defun gcov-second (list)
-  (nth 1 list))
+(defcustom cov-high-threshold .85
+  "The threshold at which a line will be painted with the heavy-use face, as a
+percentage of the most-run line."
+  :tag "Cov heavy-use threshold"
+  :group 'cov
+  :type 'float)
 
-(defgroup gcov-faces nil
-  "Faces for gcov."
-  :group 'gcov
-  :group 'faces)
+(defcustom cov-med-threshold .45
+  "The threshold at which a line will be painted with the medium-use face, as a
+percentage of the most-run line."
+  :tag "Cov heavy-use threshold"
+  :group 'cov
+  :type 'float)
 
-(defface gcov-heavy-face
+(defcustom cov-coverage-mode nil
+  "Whether to decorate all covered lines with a green fringe, and all non-covered
+lines with a red fringe"
+  :tag "Cov coverage mode"
+  :group 'cov
+  :type 'boolean)
+
+(defface cov-heavy-face
   '((((class color)) :foreground "red"))
-  "Face used on the fringe indicator for successful evaluation."
-  :group 'gcov-faces)
+  "Fringe indicator face used for heavily-run lines See `cov-high-threshold'."
+  :tag "Cov heavy-use face"
+  :group 'cov-faces)
 
-(defface gcov-med-face
+(defface cov-med-face
   '((((class color)) :foreground "yellow"))
-  ;;:group 'gcov
-  "Face used on the fringe indicator for successful evaluation."
-  :group 'gcov-faces)
+  "Fringe indicator face used for commonly-run lines See `cov-med-threshold'."
+  :tag "Cov medium-use face"
+  :group 'cov-faces)
 
-(defface gcov-light-face
+(defface cov-light-face
   '((((class color)) :foreground "green"))
-  "Face used on the fringe indicator for successful evaluation."
-  :group 'gcov-faces)
+  "Fringe indicator face used for rarely-run lines. This face is applied if no
+other face is applied."
+  :tag "Cov light-use face"
+  :group 'cov-faces)
 
-(defface gcov-none-face
+(defface cov-none-face
   '((((class color)) :foreground "blue"))
-  "Face used on the fringe indicator for no evaluation."
-  :group 'gcov-faces)
+  "Fringe indicator face used for lines which were not run."
+  :tag "Cov never-used face"
+  :group 'cov-faces)
 
-(defvar gcov-coverage-alist '((".gcov" . gcov))
+(defface cov-coverage-run-face
+  '((((class color)) :foreground "green"))
+  "Fringe indicator face used in coverage mode for lines which were run. See
+`cov-coverage-mode'"
+  :tag "Cov coverage mode run face"
+  :group 'cov-faces)
+
+(defface cov-coverage-not-run-face
+  '((((class color)) :foreground "red"))
+  "Fringe indicator face used in coverage mode for lines which were not run. See
+`cov-coverage-mode'"
+  :tag "Cov coverage mode not-run face"
+  :group 'cov-faces)
+
+(defvar cov-coverage-alist '((".gcov" . gcov))
   "Alist of coverage tool and file postfix.
 
 Each element looks like (FILE-POSTIX . COVERAGE-TOOL). If a file with
@@ -79,7 +108,7 @@ that the specified COVERAGE-TOOL has created the data.
 
 Currently the only supported COVERAGE-TOOL is gcov.")
 
-(defvar gcov-coverage-file-paths '(".")
+(defvar cov-coverage-file-paths '(".")
   "List of file paths to use to search for coverage files as strings or function.
 
 Relative paths:
@@ -91,160 +120,164 @@ Relative paths:
 Function:
  A function or lambda that should get the buffer file dir and name as arguments and return eiter nil or the truename path to the coverage file and the corresponding coverage tool in a cons cell of the form (COV-FILE-PATH . COVERAGE-TOOL).
  The following example sets a lambda that searches the coverage file in the current directory:
-  (setq gcov-coverage-file-paths (list #'(lambda (file-dir file-name)
+  (setq cov-coverage-file-paths (list #'(lambda (file-dir file-name)
                                            (let ((try (format \"%s/%s%s\"
                                                               file-dir file-name
-                                                              gcov-coverage-file-extension)))
+                                                              cov-coverage-file-extension)))
                                              (and (file-exists-p try)
                                                   (cons (file-truename try) 'gcov))))))
 
 Make the variable buffer-local, so it can be set per project, e.g. in a .dir-locals.el file, by adding
-(make-variable-buffer-local 'gcov-coverage-file-paths) in your init.el.")
-(defvar-local gcov-coverage-file nil
-  "Last located cverage file and tool.")
-(defvar gcov-high-threshold .85)
-(defvar gcov-med-threshold .45)
-(defvar gcov-overlays '())
+(make-variable-buffer-local 'cov-coverage-file-paths) in your init.el.")
+(defvar-local cov-coverage-file nil
+  "Last located coverage file and tool.")
 
-(defun gcov--locate-coverage-postfix (file-dir file-name path extension)
+(defvar cov-overlays '())
+(defconst cov-line-re "^ *\\(\\([0-9#]+\\): *\\([0-9]+\\)\\):")
+
+(defun cov--locate-coverage-postfix (file-dir file-name path extension)
   (let ((try (format "%s/%s/%s%s" file-dir path file-name extension)))
     (and (file-exists-p try) (file-truename try))))
 
-(defun gcov--locate-coverage-path (file-dir file-name path)
+(defun cov--locate-coverage-path (file-dir file-name path)
   "Locate coverage file .gcov of given FILE-PATH."
   (cl-some (lambda (extension-tool)
              (let* ((extension (car extension-tool))
                     (tool (cdr extension-tool))
-                    (file (gcov--locate-coverage-postfix file-dir file-name path extension)))
+                    (file (cov--locate-coverage-postfix file-dir file-name path extension)))
                (and file (cons file tool))))
-           gcov-coverage-alist))
+           cov-coverage-alist))
 
-(defun gcov--locate-coverage (file-path)
+(defun cov--locate-coverage (file-path)
   "Locate coverage file of given source file FILE-PATH.
 
-The function iterates over `gcov-coverage-file-path' for path candidates or locate functions. The first found file will be returned as a cons cell of the form (COV-FILE-PATH . COVERAGE-TOOL). If no file is found nil is returned."
+The function iterates over `cov-coverage-file-path' for path candidates or locate functions. The first found file will be returned as a cons cell of the form (COV-FILE-PATH . COVERAGE-TOOL). If no file is found nil is returned."
   (let ((file-dir (f-dirname file-path))
         (file-name (f-filename file-path)))
     (cl-some (lambda (path-or-fun)
                (if (stringp path-or-fun)
-                   (gcov--locate-coverage-path file-dir file-name path-or-fun)
+                   (cov--locate-coverage-path file-dir file-name path-or-fun)
                  (funcall path-or-fun file-dir file-name)))
-             gcov-coverage-file-paths)))
+             cov-coverage-file-paths)))
 
-(defun gcov--coverage ()
+(defun cov--coverage ()
   "Return coverage file and tool as a cons cell of the form (COV-FILE-PATH . COVERAGE-TOOL) for current buffer.
 
-If `gcov-coverage-file' is non nil, the value of that variable is returned. Otherwise `gcov--locate-coverage' is called."
-  (or gcov-coverage-file
-      (setq gcov-coverage-file (gcov--locate-coverage (f-this-file)))))
+If `cov-coverage-file' is non nil, the value of that variable is returned. Otherwise `cov--locate-coverage' is called."
+  (or cov-coverage-file
+      (setq cov-coverage-file (cov--locate-coverage (f-this-file)))))
 
-(defun gcov--parse (file-path)
-  "Read a gcov file, filter unused lines, and return a list of lines"
+(defun cov--read (file-path)
+  "Read a gcov file as buffer and return that buffer."
+  (find-file-noselect file-path))
+
+(defun cov--parse (cov-buffer)
+  "Parse a buffer containing a gcov file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)"
   (let ((more t)
         matches)
     (save-excursion
-      (with-current-buffer (find-file-noselect file-path)
+      (with-current-buffer cov-buffer
         (save-restriction
           (widen)
           (goto-char (point-min)) ;; needed in case the file is already open.
           (save-match-data
             (while more
-              (beginning-of-line)
-              (when (looking-at "^\\s-+\\(\\([0-9#]+\\):\\s-+\\([0-9]+\\)\\):")
+              (when (looking-at cov-line-re)
                 (push (list (string-to-number (match-string-no-properties 3))
-                            (string-to-number (match-string-no-properties 2))
-                            (match-string-no-properties 1))
+                            (string-to-number (match-string-no-properties 2)))
                       matches))
+              (end-of-line)
               (setq more (= 0 (forward-line 1))))))))
     matches))
 
-;;(gcov--parse (car (gcov--coverage)))
-
-(defun gcov-make-overlay (line fringe help)
+(defun cov--make-overlay (line fringe help)
   "Create an overlay for the line"
   (let* ((ol-front-mark
           (save-excursion
             (goto-line line)
-            (point-marker)))
-         (ol-back-mark
-          (save-excursion
-            (goto-line line)
-            (end-of-line)
-            (point-marker)))
-         (ol (make-overlay ol-front-mark ol-back-mark)))
+            (point)))
+         (ol (make-overlay ol-front-mark ol-front-mark)))
     (overlay-put ol 'before-string fringe)
-    (overlay-put ol 'help-echo help)
+    ;(overlay-put ol 'help-echo help)
     ol))
 
-(defun gcov--get-fringe (n max percentage)
-  (let ((face
-         (cond ((< gcov-high-threshold percentage)
-                'gcov-heavy-face)
-               ((< gcov-med-threshold percentage)
-                'gcov-med-face)
-               ((< n 1)
-                'gcov-none-face)
-               (t 'gcov-light-face))))
-    (propertize "f" 'display `(left-fringe empty-line ,face))))
+(defun cov--get-face (percentage)
+    "Return the appropriate face to color the line given use preferences and the
+code's execution frequency"
+    (cond
+     ((and cov-coverage-mode (> percentage 0))
+      'cov-coverage-run-face)
+     ((and cov-coverage-mode (= percentage 0))
+      'cov-coverage-not-run-face)
+     ((< cov-high-threshold percentage)
+      'cov-heavy-face)
+     ((< cov-med-threshold percentage)
+      'cov-med-face)
+     ((> percentage 0)
+      'cov-light-face)
+     (t 'cov-none-face)))
 
-(defun gcov--help (n max percentage cov)
-  (format "gcov: executed %s times (~%s%%) %s" n (* percentage 100) cov))
+(defun cov--get-fringe (percentage)
+  "Returns the fringe with the correct face"
+  (propertize "f" 'display `(left-fringe empty-line ,(cov--get-face percentage))))
 
-(defun gcov--set-overlay (line max)
-  (let* ((n (gcov-second line))
-         (percentage (/ n (float max)))
-         (overlay (gcov-make-overlay
-                   (first line)
-                   (gcov--get-fringe n max percentage)
-                   (gcov--help n max percentage (nth 2 line)))))
-    (setq gcov-overlays (cons overlay gcov-overlays))))
+(defun cov--help (n percentage)
+  (format "gcov: executed %s times (~%s%%)" n (* percentage 100)))
 
-(defun gcov-set-overlays ()
+(defun cov--set-overlay (line max)
+  (let* ((times-executed (nth 1 line))
+         (percentage (/ times-executed (float max)))
+         (overlay (cov--make-overlay
+                   (cl-first line)
+                   (cov--get-fringe percentage)
+                   (cov--help times-executed percentage))))
+    (push overlay cov-overlays)))
+
+(defun cov-set-overlays ()
   (interactive)
-  (let ((gcov (gcov--coverage)))
-    (if gcov
-        (let* ((lines (gcov--parse (car gcov)))
-               (max (gcov-l-max (mapcar 'gcov-second lines))))
-          (while (< 0 (list-length lines))
-            (let ((line (pop lines)))
-              (gcov--set-overlay line max))))
+  (let ((cov (cov--coverage)))
+    (if cov
+        (let* ((lines (cov--parse (cov--read (car cov))))
+               (max (reduce 'max (mapcar 'cl-second lines))))
+          (dolist (line-data lines)
+            (cov--set-overlay line-data max)))
       (message "No coverage data found."))))
 
-(defun gcov-clear-overlays ()
+(defun cov-clear-overlays ()
   (interactive)
-  (while (< 0 (list-length gcov-overlays))
-    (delete-overlay (pop gcov-overlays))))
+  (while (< 0 (cl-list-length cov-overlays))
+    (delete-overlay (pop cov-overlays))))
 
-(defun gcov-visit-coverage-file ()
+(defun cov-visit-coverage-file ()
   "Visit coverage file."
   (interactive)
-  (let ((gcov (gcov--coverage)))
-    (if gcov
-        (find-file (car gcov))
+  (let ((cov (cov--coverage)))
+    (if cov
+        (find-file (car cov))
       (message "No coverage data found."))))
 
-(defun gcov-update ()
-  "Turn on gcov-mode."
+(defun cov-update ()
+  "Turn on cov-mode."
   (interactive)
-  (gcov-clear-overlays)
-  (gcov-set-overlays))
+  (cov-clear-overlays)
+  (cov-set-overlays))
 
-(defun gcov-turn-on ()
-  "Turn on gcov-mode."
-  (gcov-set-overlays))
+(defun cov-turn-on ()
+  "Turn on cov-mode."
+  (cov-set-overlays))
 
-(defun gcov-turn-off ()
-  "Turn off gcov-mode."
-  (gcov-clear-overlays))
+(defun cov-turn-off ()
+  "Turn off cov-mode."
+  (cov-clear-overlays))
 
 ;;;###autoload
-(define-minor-mode gcov-mode
-  "Minor mode for gcov."
-  :lighter " gcov"
+(define-minor-mode cov-mode
+  "Minor mode for cov."
+  :lighter " cov"
   (progn
-    (if gcov-mode
-        (gcov-turn-on)
-      (gcov-turn-off))))
+    (if cov-mode
+        (cov-turn-on)
+      (cov-turn-off))))
 
 (provide 'cov)
 ;;; cov.el ends here
