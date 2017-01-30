@@ -181,7 +181,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
     (propertize "f" 'display `(left-fringe empty-line ,face))))
 
 (defun cov--help (n max percentage)
-  (format "gcov: executed %s times (~%s%%)" n (* percentage 100)))
+  (format "gcov: executed %d times (~%.2f%% of highest)" n (* percentage 100)))
 
 (defun cov--set-overlay (line max)
   (let* ((times-executed (nth 1 line))
