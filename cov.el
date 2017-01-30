@@ -171,7 +171,7 @@ The function iterates over `cov-coverage-file-path' for path candidates or locat
 
 If `cov-coverage-file' is non nil, the value of that variable is returned. Otherwise `cov--locate-coverage' is called."
   (or cov-coverage-file
-      (setq cov-coverage-file (cov--locate-coverage (f-this-file)))))
+      (setq cov-coverage-file (cov--locate-coverage (buffer-file-name)))))
 
 (defun cov--keep-line? (line)
   (s-matches? cov-line-re line))
@@ -189,16 +189,14 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
 
 (defun cov-make-overlay (line fringe help)
   "Create an overlay for the line"
-  (let* ((ol-front-mark
-          (save-excursion
-            (goto-line line)
-            (point-marker)))
-         (ol-back-mark
-          (save-excursion
-            (goto-line line)
-            (end-of-line)
-            (point-marker)))
-         (ol (make-overlay ol-front-mark ol-back-mark)))
+  (let (ol-front-mark ol-back-mark ol)
+    (save-excursion
+      (goto-char (point-min))
+      (forward-line (1- line))
+      (setq ol-front-mark (point))
+      (end-of-line)
+      (setq ol-back-mark (point)))
+    (setq ol (make-overlay ol-front-mark ol-back-mark))
     (overlay-put ol 'before-string fringe)
     (overlay-put ol 'help-echo help)
     ol))
@@ -240,10 +238,10 @@ code's execution frequency"
   (let ((gcov (cov--coverage)))
     (if gcov
         (let* ((lines (mapcar 'cov--parse (cov--read (car gcov))))
-               (max (reduce 'max (cons 0 (mapcar 'cl-second lines)))))
+               (max (cl-reduce 'max (cons 0 (mapcar 'cl-second lines)))))
           (dolist (line-data lines)
             (cov--set-overlay line-data max)))
-      (message "No coverage data found."))))
+      (message "No coverage data found for %s." (buffer-file-name)))))
 
 (defun cov-clear-overlays ()
   (interactive)
@@ -266,6 +264,7 @@ code's execution frequency"
 
 (defun cov-turn-on ()
   "Turn on cov-mode."
+  (cov-clear-overlays)
   (cov-set-overlays))
 
 (defun cov-turn-off ()

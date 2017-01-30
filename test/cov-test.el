@@ -109,3 +109,82 @@
     (should (equal (cov--get-face 0.46) 'cov-coverage-run-face))
     (should (equal (cov--get-face 0.44) 'cov-coverage-run-face))
     (should (equal (cov--get-face 0.0) 'cov-coverage-not-run-face))))
+
+;; cov-mode
+(ert-deftest cov-mode--enable-test ()
+  (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+    (cov-mode 1)
+    (should (equal (length cov-overlays) 9)))
+  (kill-buffer "test"))
+
+(ert-deftest cov-mode--disable-test ()
+  (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+    (cov-mode 1)
+    (cov-mode 0)
+    (should (equal cov-overlays '())))
+  (kill-buffer "test"))
+
+(ert-deftest cov-mode--re-enable-test ()
+  (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+    (cov-mode 1)
+    (cov-mode 1)
+    (should (equal (length cov-overlays) 9)))
+  (kill-buffer "test"))
+
+(ert-deftest cov-mode--overlay-start-test ()
+  (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+    (cov-mode 0)
+    (cov-mode 1)
+    (should (equal (length cov-overlays) 9))
+    (let ((expected (reverse '(15 36 57 78 99 120 141 162 183))))
+      (dolist (overlay cov-overlays)
+        (should (equal (overlay-start overlay) (pop expected))))))
+  (kill-buffer "test"))
+
+(ert-deftest cov-mode--overlay-end-test ()
+  (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+    (cov-mode 0)
+    (cov-mode 1)
+    (should (equal (length cov-overlays) 9))
+    (let ((expected (reverse '(35 56 77 98 119 140 161 182 204))))
+      (dolist (overlay cov-overlays)
+        (should (equal (overlay-end overlay) (pop expected))))))
+  (kill-buffer "test"))
+
+(ert-deftest cov-mode--overlay-face-test ()
+  (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+    (cov-mode 0)
+    (cov-mode 1)
+    (should (equal (length cov-overlays) 9))
+    (let ((expected (reverse '(#("f" 0 1 (display (left-fringe empty-line cov-heavy-face)))
+                               #("f" 0 1 (display (left-fringe empty-line cov-heavy-face)))
+                               #("f" 0 1 (display (left-fringe empty-line cov-med-face)))
+                               #("f" 0 1 (display (left-fringe empty-line cov-med-face)))
+                               #("f" 0 1 (display (left-fringe empty-line cov-med-face)))
+                               #("f" 0 1 (display (left-fringe empty-line cov-light-face)))
+                               #("f" 0 1 (display (left-fringe empty-line cov-light-face)))
+                               #("f" 0 1 (display (left-fringe empty-line cov-light-face)))
+                               #("f" 0 1 (display (left-fringe empty-line cov-none-face)))))))
+      (dolist (overlay cov-overlays)
+        ;;(print (overlay-get overlay 'before-string))
+        (should (equal (overlay-get overlay 'before-string) (pop expected))))))
+  (kill-buffer "test"))
+
+(ert-deftest cov-mode--overlay-help-test ()
+  (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+    (cov-mode 0)
+    (cov-mode 1)
+    (should (equal (length cov-overlays) 9))
+    (let ((expected (reverse '("cov: executed 100 times (~100.00% of highest)"
+                               "cov: executed 86 times (~86.00% of highest)"
+                               "cov: executed 85 times (~85.00% of highest)"
+                               "cov: executed 84 times (~84.00% of highest)"
+                               "cov: executed 46 times (~46.00% of highest)"
+                               "cov: executed 45 times (~45.00% of highest)"
+                               "cov: executed 44 times (~44.00% of highest)"
+                               "cov: executed 1 times (~1.00% of highest)"
+                               "cov: executed 0 times (~0.00% of highest)"))))
+      (dolist (overlay cov-overlays)
+        ;;(print (overlay-get overlay 'help-echo))
+        (should (equal (overlay-get overlay 'help-echo) (pop expected))))))
+  (kill-buffer "test"))
