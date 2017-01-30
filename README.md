@@ -61,4 +61,4 @@ cask exec ert-runner
 ```
 
 ## License
-GPLv3
+GPLv3+

@@ -49,7 +49,7 @@ percentage of the most-run line."
 (defcustom cov-med-threshold .45
   "The threshold at which a line will be painted with the medium-use face, as a
 percentage of the most-run line."
-  :tag "Cov heavy-use threshold"
+  :tag "Cov medium-use threshold"
   :group 'cov
   :type 'float)
 
@@ -238,7 +238,7 @@ code's execution frequency"
   (let ((cov (cov--coverage)))
     (if cov
         (let* ((lines (cov--parse (cov--read (car cov))))
-               (max (reduce 'max (mapcar 'cl-second lines))))
+               (max (reduce 'max (cons 0 (mapcar 'cl-second lines)))))
           (dolist (line-data lines)
             (cov--set-overlay line-data max)))
       (message "No coverage data found."))))
