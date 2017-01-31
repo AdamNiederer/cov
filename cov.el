@@ -165,7 +165,7 @@ The function iterates over `cov-coverage-file-path' for path candidates or locat
 
 If `cov-coverage-file' is non nil, the value of that variable is returned. Otherwise `cov--locate-coverage' is called."
   (or cov-coverage-file
-      (setq cov-coverage-file (cov--locate-coverage (f-this-file)))))
+      (setq cov-coverage-file (cov--locate-coverage (buffer-file-name)))))
 
 (defun cov--parse (buffer)
   "Parse a buffer containing gcov file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
@@ -245,9 +245,9 @@ code's execution frequency"
 
 (defun cov-set-overlays ()
   (interactive)
-  (let ((cov (cov--coverage)))
-    (if cov
-        (let* ((lines (cov--parse (cov--read (car cov))))
+  (let ((gcov (cov--coverage)))
+    (if gcov
+        (let* ((lines (cov--parse (cov--read (car gcov))))
                (max (reduce 'max (cons 0 (mapcar 'cl-second lines))))
                (displacement (cov--calc-line-displacement))
                (max-line (+ (line-number-at-pos (point-max)) displacement)))
@@ -255,7 +255,7 @@ code's execution frequency"
             (when (and (> (car line-data) displacement)
                        (<= (car line-data) max-line))
               (cov--set-overlay line-data max displacement))))
-      (message "No coverage data found."))))
+      (message "No coverage data found for %s." (buffer-file-name)))))
 
 (defun cov-clear-overlays ()
   (interactive)
@@ -278,6 +278,7 @@ code's execution frequency"
 
 (defun cov-turn-on ()
   "Turn on cov-mode."
+  (cov-clear-overlays)
   (cov-set-overlays))
 
 (defun cov-turn-off ()
