@@ -167,28 +167,25 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
   (or cov-coverage-file
       (setq cov-coverage-file (cov--locate-coverage (f-this-file)))))
 
-(defun cov--read (file-path)
-  "Read a gcov file as buffer and return that buffer."
-  (find-file-noselect file-path))
-
-(defun cov--parse (cov-buffer)
-  "Parse a buffer containing a gcov file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)"
+(defun cov--parse (buffer)
+  "Parse a buffer containing gcov file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
   (let ((more t)
         matches)
-    (save-excursion
-      (with-current-buffer cov-buffer
-        (save-restriction
-          (widen)
-          (goto-char (point-min)) ;; needed in case the file is already open.
-          (save-match-data
-            (while more
-              (when (looking-at cov-line-re)
-                (push (list (string-to-number (match-string-no-properties 3))
-                            (string-to-number (match-string-no-properties 2)))
-                      matches))
-              (end-of-line)
-              (setq more (= 0 (forward-line 1))))))))
+    (save-match-data
+      (while more
+        (when (looking-at cov-line-re)
+          (push (list (string-to-number (match-string-no-properties 3))
+                      (string-to-number (match-string-no-properties 2)))
+                matches))
+        (end-of-line)
+        (setq more (= 0 (forward-line 1)))))
     matches))
+
+(defun cov--read-and-parse (file-path)
+  "Read coverage file FILE-PATH into temp buffer and parses it using `cov--parse'."
+  (with-temp-buffer
+    (insert-file-contents file-path)
+    (cov--parse (current-buffer))))
 
 (defun cov--make-overlay (line fringe help)
   "Create an overlay for the line"
@@ -240,7 +237,7 @@ code's execution frequency"
   (interactive)
   (let ((cov (cov--coverage)))
     (if cov
-        (let* ((lines (cov--parse (cov--read (car cov))))
+        (let* ((lines (cov--read-and-parse (car cov)))
                (max (reduce 'max (cons 0 (mapcar 'cl-second lines)))))
           (dolist (line-data lines)
             (cov--set-overlay line-data max)))
