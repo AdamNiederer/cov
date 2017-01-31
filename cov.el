@@ -37,7 +37,7 @@
   "The group for everything in cov.el")
 
 (defgroup cov-faces nil
-  "Faces for gcov.")
+  "Faces for cov.")
 
 (defcustom cov-high-threshold .85
   "The threshold at which a line will be painted with the heavy-use face, as a
@@ -133,13 +133,7 @@ Make the variable buffer-local, so it can be set per project, e.g. in a .dir-loc
   "Last located coverage file and tool.")
 
 (defvar cov-overlays '())
-(defconst cov-line-re "^ +\\([0-9#]+\\):\\s-+\\([0-9#]+\\):")
-
-(defun cov--read-lines (file-path)
-  "Return a list of lines"
-  (with-temp-buffer
-    (insert-file-contents file-path)
-    (split-string (buffer-string) "\n" t nil)))
+(defconst cov-line-re "^ *\\(\\([0-9#]+\\): *\\([0-9]+\\)\\):")
 
 (defun cov--locate-coverage-postfix (file-dir file-name path extension)
   (let ((try (format "%s/%s/%s%s" file-dir path file-name extension)))
@@ -173,21 +167,27 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
   (or cov-coverage-file
       (setq cov-coverage-file (cov--locate-coverage (buffer-file-name)))))
 
-(defun cov--keep-line? (line)
-  (s-matches? cov-line-re line))
+(defun cov--parse (buffer)
+  "Parse a buffer containing gcov file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
+  (let ((more t)
+        matches)
+    (save-match-data
+      (while more
+        (when (looking-at cov-line-re)
+          (push (list (string-to-number (match-string-no-properties 3))
+                      (string-to-number (match-string-no-properties 2)))
+                matches))
+        (end-of-line)
+        (setq more (= 0 (forward-line 1)))))
+    matches))
 
-(defun cov--read (file-path)
-  "Read a gcov file, filter unused lines, and return a list of lines"
-  (cl-remove-if-not
-   'cov--keep-line?
-   (cov--read-lines file-path)))
+(defun cov--read-and-parse (file-path)
+  "Read coverage file FILE-PATH into temp buffer and parses it using `cov--parse'."
+  (with-temp-buffer
+    (insert-file-contents file-path)
+    (cov--parse (current-buffer))))
 
-(defun cov--parse (string)
-  "Returns a list of (line-num, times-ran)"
-  `(,(string-to-number (nth 2 (s-match cov-line-re string)))
-    ,(string-to-number (nth 1 (s-match cov-line-re string)))))
-
-(defun cov-make-overlay (line fringe help)
+(defun cov--make-overlay (line fringe help)
   "Create an overlay for the line"
   (let (ol-front-mark ol-back-mark ol)
     (save-excursion
@@ -224,23 +224,37 @@ code's execution frequency"
 (defun cov--help (n percentage)
   (format "cov: executed %d times (~%.2f%% of highest)" n (* percentage 100)))
 
-(defun cov--set-overlay (line max)
+(defun cov--set-overlay (line max displacement)
   (let* ((times-executed (nth 1 line))
          (percentage (/ times-executed (float max)))
-         (overlay (cov-make-overlay
-                   (cl-first line)
+         (overlay (cov--make-overlay
+                   (- (cl-first line) displacement)
                    (cov--get-fringe percentage)
                    (cov--help times-executed percentage))))
-    (setq cov-overlays (cons overlay cov-overlays))))
+    (push overlay cov-overlays)))
+
+(defun cov--calc-line-displacement ()
+  "Get line number displacement if buffer is narrowed."
+  (let ((start (point-min)))
+    (if (= start 1)
+        0
+      (save-excursion
+        (save-restriction
+          (widen)
+          (1- (line-number-at-pos start)))))))
 
 (defun cov-set-overlays ()
   (interactive)
-  (let ((gcov (cov--coverage)))
-    (if gcov
-        (let* ((lines (mapcar 'cov--parse (cov--read (car gcov))))
-               (max (cl-reduce 'max (cons 0 (mapcar 'cl-second lines)))))
+  (let ((cov (cov--coverage)))
+    (if cov
+        (let* ((lines (cov--read-and-parse (car cov)))
+               (max (cl-reduce 'max (cons 0 (mapcar 'cl-second lines))))
+               (displacement (cov--calc-line-displacement))
+               (max-line (+ (line-number-at-pos (point-max)) displacement)))
           (dolist (line-data lines)
-            (cov--set-overlay line-data max)))
+            (when (and (> (car line-data) displacement)
+                       (<= (car line-data) max-line))
+              (cov--set-overlay line-data max displacement))))
       (message "No coverage data found for %s." (buffer-file-name)))))
 
 (defun cov-clear-overlays ()
@@ -251,9 +265,9 @@ code's execution frequency"
 (defun cov-visit-coverage-file ()
   "Visit coverage file."
   (interactive)
-  (let ((gcov (cov--coverage)))
-    (if gcov
-        (find-file (car gcov))
+  (let ((cov (cov--coverage)))
+    (if cov
+        (find-file (car cov))
       (message "No coverage data found."))))
 
 (defun cov-update ()
@@ -274,7 +288,7 @@ code's execution frequency"
 ;;;###autoload
 (define-minor-mode cov-mode
   "Minor mode for cov."
-  :lighter " gcov"
+  :lighter " cov"
   (progn
     (if cov-mode
         (cov-turn-on)
