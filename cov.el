@@ -187,7 +187,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
   `(,(string-to-number (nth 2 (s-match cov-line-re string)))
     ,(string-to-number (nth 1 (s-match cov-line-re string)))))
 
-(defun cov-make-overlay (line fringe help)
+(defun cov--make-overlay (line fringe help)
   "Create an overlay for the line"
   (let* ((ol-front-mark
           (save-excursion
