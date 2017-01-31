@@ -167,7 +167,7 @@
     (cov-mode 0)
     (cov-mode 1)
     (should (equal (length cov-overlays) 9))
-    (let ((expected (reverse '(15 36 57 78 99 120 141 162 183))))
+    (let ((expected '(15 36 57 78 99 120 141 162 183)))
       (dolist (overlay cov-overlays)
         (should (equal (overlay-start overlay) (pop expected))))))
   (kill-buffer "test"))
@@ -177,7 +177,7 @@
     (cov-mode 0)
     (cov-mode 1)
     (should (equal (length cov-overlays) 9))
-    (let ((expected (reverse '(35 56 77 98 119 140 161 182 204))))
+    (let ((expected '(35 56 77 98 119 140 161 182 204)))
       (dolist (overlay cov-overlays)
         (should (equal (overlay-end overlay) (pop expected))))))
   (kill-buffer "test"))
@@ -187,15 +187,15 @@
     (cov-mode 0)
     (cov-mode 1)
     (should (equal (length cov-overlays) 9))
-    (let ((expected (reverse '(#("f" 0 1 (display (left-fringe empty-line cov-heavy-face)))
-                               #("f" 0 1 (display (left-fringe empty-line cov-heavy-face)))
-                               #("f" 0 1 (display (left-fringe empty-line cov-med-face)))
-                               #("f" 0 1 (display (left-fringe empty-line cov-med-face)))
-                               #("f" 0 1 (display (left-fringe empty-line cov-med-face)))
-                               #("f" 0 1 (display (left-fringe empty-line cov-light-face)))
-                               #("f" 0 1 (display (left-fringe empty-line cov-light-face)))
-                               #("f" 0 1 (display (left-fringe empty-line cov-light-face)))
-                               #("f" 0 1 (display (left-fringe empty-line cov-none-face)))))))
+    (let ((expected '(#("f" 0 1 (display (left-fringe empty-line cov-heavy-face)))
+                      #("f" 0 1 (display (left-fringe empty-line cov-heavy-face)))
+                      #("f" 0 1 (display (left-fringe empty-line cov-med-face)))
+                      #("f" 0 1 (display (left-fringe empty-line cov-med-face)))
+                      #("f" 0 1 (display (left-fringe empty-line cov-med-face)))
+                      #("f" 0 1 (display (left-fringe empty-line cov-light-face)))
+                      #("f" 0 1 (display (left-fringe empty-line cov-light-face)))
+                      #("f" 0 1 (display (left-fringe empty-line cov-light-face)))
+                      #("f" 0 1 (display (left-fringe empty-line cov-none-face))))))
       (dolist (overlay cov-overlays)
         ;;(print (overlay-get overlay 'before-string))
         (should (equal (overlay-get overlay 'before-string) (pop expected))))))
@@ -206,15 +206,15 @@
     (cov-mode 0)
     (cov-mode 1)
     (should (equal (length cov-overlays) 9))
-    (let ((expected (reverse '("cov: executed 100 times (~100.00% of highest)"
-                               "cov: executed 86 times (~86.00% of highest)"
-                               "cov: executed 85 times (~85.00% of highest)"
-                               "cov: executed 84 times (~84.00% of highest)"
-                               "cov: executed 46 times (~46.00% of highest)"
-                               "cov: executed 45 times (~45.00% of highest)"
-                               "cov: executed 44 times (~44.00% of highest)"
-                               "cov: executed 1 times (~1.00% of highest)"
-                               "cov: executed 0 times (~0.00% of highest)"))))
+    (let ((expected '("cov: executed 100 times (~100.00% of highest)"
+                      "cov: executed 86 times (~86.00% of highest)"
+                      "cov: executed 85 times (~85.00% of highest)"
+                      "cov: executed 84 times (~84.00% of highest)"
+                      "cov: executed 46 times (~46.00% of highest)"
+                      "cov: executed 45 times (~45.00% of highest)"
+                      "cov: executed 44 times (~44.00% of highest)"
+                      "cov: executed 1 times (~1.00% of highest)"
+                      "cov: executed 0 times (~0.00% of highest)")))
       (dolist (overlay cov-overlays)
         ;;(print (overlay-get overlay 'help-echo))
         (should (equal (overlay-get overlay 'help-echo) (pop expected))))))

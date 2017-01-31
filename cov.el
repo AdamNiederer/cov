@@ -245,10 +245,10 @@ code's execution frequency"
 
 (defun cov-set-overlays ()
   (interactive)
-  (let ((gcov (cov--coverage)))
-    (if gcov
-        (let* ((lines (cov--parse (cov--read (car gcov))))
-               (max (reduce 'max (cons 0 (mapcar 'cl-second lines))))
+  (let ((cov (cov--coverage)))
+    (if cov
+        (let* ((lines (cov--read-and-parse (car cov)))
+               (max (cl-reduce 'max (cons 0 (mapcar 'cl-second lines))))
                (displacement (cov--calc-line-displacement))
                (max-line (+ (line-number-at-pos (point-max)) displacement)))
           (dolist (line-data lines)
