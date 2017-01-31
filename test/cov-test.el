@@ -2,23 +2,54 @@
 
 (require 'cov)
 
-;; cov--keep-line?
-(ert-deftest cov--keep-line--test ()
-  (should-not (cov--keep-line? "        -:   22:        ")))
+;; cov-parse
+(ert-deftest cov--parse--hyphen-test ()
+  (with-temp-buffer
+    (insert "        -:   22:        ")
+    (goto-char 1)
+    (should (equal
+             (cov--parse (current-buffer))
+             '()))))
 
-(ert-deftest cov--keep-line--block-test ()
-  (should-not (cov--keep-line? "        1:   21-block  0")))
+(ert-deftest cov--parse--block-test ()
+  (with-temp-buffer
+    (insert "        1:   21-block  0")
+    (goto-char 1)
+    (should (equal
+             (cov--parse (current-buffer))
+             '()))))
 
-;; cov--parse & cov--keep-line?
 (ert-deftest cov--parse--executed-test ()
-  (let ((line "        6:   24:        "))
-    (should (cov--keep-line? line))
-    (should (equal (cov--parse line) '(24 6)))))
+  (with-temp-buffer
+    (insert "        6:   24:        ")
+    (goto-char 1)
+    (should (equal
+             (cov--parse (current-buffer))
+             '((24 6))))))
+
+(ert-deftest cov--parse--big-value-test ()
+  (with-temp-buffer
+    (insert "999999999:99999:        ")
+    (goto-char 1)
+    (should (equal
+             (cov--parse (current-buffer))
+             '((99999 999999999))))))
+
+(ert-deftest cov--parse--multiline-test ()
+  (with-temp-buffer
+    (insert "        6:    1:\n       16:    2:\n       66:    3:")
+    (goto-char 1)
+    (should (equal
+             (cov--parse (current-buffer))
+             '((3 66) (2 16) (1 6))))))
 
 (ert-deftest cov--parse--not-executed-test ()
-  (let ((line "    #####:   24:        "))
-    (should (cov--keep-line? line))
-    (should (equal (cov--parse line) '(24 0)))))
+  (with-temp-buffer
+    (insert "    #####:   24:        ")
+    (goto-char 1)
+    (should (equal
+             (cov--parse (current-buffer))
+             '((24 0))))))
 
 ;; cov--locate-coverage-postfix
 (ert-deftest cov--locate-coverage-postfix-test ()
