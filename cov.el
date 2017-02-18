@@ -1,4 +1,4 @@
-;;; cov.el --- Show coverage stats in the fringe.
+;;; cov.el --- Show coverage stats in the fringe. -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2016-2017 Adam Niederer
 
