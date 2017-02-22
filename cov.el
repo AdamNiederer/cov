@@ -60,6 +60,13 @@ lines with a red fringe"
   :group 'cov
   :type 'boolean)
 
+(defcustom cov-fringe-symbol 'empty-line
+  "The symbol to display on each line while in coverage-mode. See
+`fringe-bitmaps' for a full list of options"
+  :tag "Cov fringe symbol"
+  :group 'cov
+  :type 'symbol)
+
 (defface cov-heavy-face
   '((((class color)) :foreground "red"))
   "Fringe indicator face used for heavily-run lines See `cov-high-threshold'."
@@ -219,7 +226,7 @@ code's execution frequency"
 
 (defun cov--get-fringe (percentage)
   "Returns the fringe with the correct face"
-  (propertize "f" 'display `(left-fringe empty-line ,(cov--get-face percentage))))
+  (propertize "f" 'display `(left-fringe ,cov-fringe-symbol ,(cov--get-face percentage))))
 
 (defun cov--help (n percentage)
   (format "cov: executed %d times (~%.2f%% of highest)" n (* percentage 100)))
