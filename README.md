@@ -1,14 +1,13 @@
 ![GPLv3](https://img.shields.io/badge/license-GPLv3-brightgreen.svg)
 [![Build Status](https://travis-ci.org/AdamNiederer/cov.svg?branch=master)](https://travis-ci.org/AdamNiederer/cov)
+[![MELPA](http://melpa.org/packages/cov-badge.svg)](http://melpa.org/#/cov)
 
 # cov
 `cov` shows code coverage data for your program in emacs. Currently, it only supports gcov output.
 ![Screenshot](example.png)
 
 ## Installation
-`cov` is not yet available on MELPA, but it might be some day.
-For now, load it in your init script
-`(load-file "/path/to/cov")`
+cov is on MELPA. To install it, type `M-x package-install RET cov RET`
 
 ## Usage
 `set-overlays` and `clear-overlays` will add and remove the data overlays. Proper namespacing and a mode are to be implemented.
