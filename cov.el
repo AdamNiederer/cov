@@ -141,6 +141,7 @@ Make the variable buffer-local, so it can be set per project, e.g. in a .dir-loc
 
 (defvar cov-overlays '())
 (defconst cov-line-re "^ *\\(\\([0-9#]+\\): *\\([0-9]+\\)\\):")
+(defconst cov-intermediate-line-re "^lcount:\\(\\([0-9]+\\),\\([0-9]+\\)\\)")
 
 (defun cov--locate-coverage-postfix (file-dir file-name path extension)
   (let ((try (format "%s/%s/%s%s" file-dir path file-name extension)))
@@ -180,10 +181,14 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
         matches)
     (save-match-data
       (while more
-        (when (looking-at cov-line-re)
-          (push (list (string-to-number (match-string-no-properties 3))
-                      (string-to-number (match-string-no-properties 2)))
-                matches))
+        (if (looking-at cov-line-re)
+            (push (list (string-to-number (match-string-no-properties 3))
+                        (string-to-number (match-string-no-properties 2)))
+                  matches)
+          (if (looking-at cov-intermediate-line-re)
+              (push (list (string-to-number (match-string-no-properties 2))
+                          (string-to-number (match-string-no-properties 3)))
+                    matches)))
         (end-of-line)
         (setq more (= 0 (forward-line 1)))))
     matches))
