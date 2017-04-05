@@ -186,7 +186,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
                         (string-to-number (match-string-no-properties 2)))
                   matches)
           (if (looking-at cov-intermediate-line-re)
-              (push (list (string-to-number (match-string-no-properties 2))
+              (push (list (1+ (string-to-number (match-string-no-properties 2)))
                           (string-to-number (match-string-no-properties 3)))
                     matches)))
         (end-of-line)
