@@ -3,7 +3,7 @@
 [![MELPA](http://melpa.org/packages/cov-badge.svg)](http://melpa.org/#/cov)
 
 # cov
-`cov` shows code coverage data for your program in emacs. Currently, it only supports gcov output.
+`cov` shows code coverage data for your program in emacs. Currently, it supports gcov and lcov output.
 ![Screenshot](example.png)
 
 ## Installation
