@@ -33,6 +33,7 @@
 (require 'f)
 (require 'cl-lib)
 (require 'json)
+(require 'seq)
 
 (defgroup cov nil
   "The group for everything in cov.el")
@@ -167,7 +168,6 @@ to your init.el.")
 (defvar-local cov-coverage-file nil
   "Last located coverage file and tool.")
 
-(defvar cov-overlays '())
 (defconst cov-line-re "^ *\\(\\([0-9#]+\\): *\\([0-9]+\\)\\):")
 (defconst cov-intermediate-line-re "^lcount:\\(\\([0-9]+\\),\\([0-9]+\\)\\)")
 
@@ -270,6 +270,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
     (setq ol (make-overlay ol-front-mark ol-back-mark))
     (overlay-put ol 'before-string fringe)
     (overlay-put ol 'help-echo help)
+    (overlay-put ol 'cov t)
     ol))
 
 (defun cov--get-face (percentage)
@@ -297,12 +298,11 @@ code's execution frequency"
 
 (defun cov--set-overlay (line max displacement)
   (let* ((times-executed (nth 1 line))
-         (percentage (/ times-executed (float max)))
-         (overlay (cov--make-overlay
-                   (- (cl-first line) displacement)
-                   (cov--get-fringe percentage)
-                   (cov--help times-executed percentage))))
-    (push overlay cov-overlays)))
+         (percentage (/ times-executed (float max))))
+     (cov--make-overlay
+      (- (cl-first line) displacement)
+      (cov--get-fringe percentage)
+      (cov--help times-executed percentage))))
 
 (defun cov--calc-line-displacement ()
   "Get line number displacement if buffer is narrowed."
@@ -331,9 +331,14 @@ code's execution frequency"
       (message "No coverage data found for %s." (buffer-file-name)))))
 
 (defun cov-clear-overlays ()
+  "Remove all cov overlays."
   (interactive)
-  (while (< 0 (cl-list-length cov-overlays))
-    (delete-overlay (pop cov-overlays))))
+  (remove-overlays (point-min) (point-max) 'cov t))
+
+(defun cov--overlays ()
+  "Return a list of all cov overlays."
+  (seq-filter (lambda (ov) (overlay-get ov 'cov))
+              (overlays-in (point-min) (point-max))))
 
 (defun cov-visit-coverage-file ()
   "Visit coverage file."
