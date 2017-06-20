@@ -38,7 +38,8 @@
   "The group for everything in cov.el")
 
 (defgroup cov-faces nil
-  "Faces for cov.")
+  "Faces for cov."
+  :group 'cov)
 
 (defcustom cov-high-threshold .85
   "The threshold at which a line will be painted with the heavy-use face, as a
