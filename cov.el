@@ -259,15 +259,11 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
              file-path)))
 
 (defun cov--make-overlay (line fringe help)
-  "Create an overlay for line"
-  (let (ol-front-mark ol-back-mark ol)
-    (save-excursion
-      (goto-char (point-min))
-      (forward-line (1- line))
-      (setq ol-front-mark (point))
-      (end-of-line)
-      (setq ol-back-mark (point)))
-    (setq ol (make-overlay ol-front-mark ol-back-mark))
+  "Create an overlay for the line"
+  (let ((ol (save-excursion
+              (goto-char (point-min))
+              (forward-line (1- line))
+              (make-overlay (point) (line-end-position)))))
     (overlay-put ol 'before-string fringe)
     (overlay-put ol 'help-echo help)
     (overlay-put ol 'cov t)
