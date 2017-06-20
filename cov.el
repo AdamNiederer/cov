@@ -176,19 +176,19 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
       (setq cov-coverage-file (cov--locate-coverage (buffer-file-name)))))
 
 (defun cov--parse (buffer)
-  "Parse a buffer containing gcov file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
+  "Parse a BUFFER containing gcov file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
   (let ((more t)
         matches)
     (save-match-data
       (while more
-        (if (looking-at cov-line-re)
-            (push (list (string-to-number (match-string-no-properties 3))
-                        (string-to-number (match-string-no-properties 2)))
-                  matches)
-          (if (looking-at cov-intermediate-line-re)
-              (push (list (string-to-number (match-string-no-properties 2))
-                          (string-to-number (match-string-no-properties 3)))
-                    matches)))
+        (cond ((looking-at cov-line-re)
+               (push (list (string-to-number (match-string-no-properties 3))
+                           (string-to-number (match-string-no-properties 2)))
+                     matches))
+              ((looking-at cov-intermediate-line-re)
+               (push (list (string-to-number (match-string-no-properties 2))
+                           (string-to-number (match-string-no-properties 3)))
+                     matches)))
         (end-of-line)
         (setq more (= 0 (forward-line 1)))))
     matches))
