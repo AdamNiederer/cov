@@ -182,6 +182,23 @@
         (should (equal (overlay-end overlay) (pop expected))))))
   (kill-buffer "test"))
 
+(defun cov-mode--equal-including-properties (s1 s2)
+  "Return t if strings S1 and S2 including complicated text properties.
+This is like ‘equal-including-properties’ except that it handles
+text properties with list values."
+  (when (equal s1 s2) ; check that the actual characters are the same
+    (let* ((pos1 0) (pos2 0)
+           (props1 (text-properties-at pos1 s1))
+           (props2 (text-properties-at pos2 s2)))
+      (while (and pos1 pos2 ; posX will be nil at the end of string
+                  (= pos1 pos2)
+                  (equal props1 props2))
+        (setq pos1 (next-property-change pos1 s1))
+        (setq pos2 (next-property-change pos2 s2))
+        (setq props1 (if pos1 (text-properties-at pos1 s1)))
+        (setq props2 (if pos2 (text-properties-at pos2 s2))))
+      (not (or pos1 pos2))))) ; if both are nil the strings are equal
+
 (ert-deftest cov-mode--overlay-face-test ()
   (with-current-buffer (find-file-noselect (format "%s/test" test-path))
     (cov-mode 0)
@@ -197,8 +214,12 @@
                       #("f" 0 1 (display (left-fringe empty-line cov-light-face)))
                       #("f" 0 1 (display (left-fringe empty-line cov-none-face))))))
       (dolist (overlay cov-overlays)
-        ;;(print (overlay-get overlay 'before-string))
-        (should (equal (overlay-get overlay 'before-string) (pop expected))))))
+        (let ((expect (pop expected)))
+          (ert-info ((format "props '%s'\nexpect '%s'"
+                             (overlay-get overlay 'help-echo)
+                             (pp-to-string expect)))
+            (should (cov-mode--equal-including-properties
+                     (overlay-get overlay 'before-string) expect)))))))
   (kill-buffer "test"))
 
 (ert-deftest cov-mode--overlay-help-test ()
