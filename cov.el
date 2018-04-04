@@ -32,6 +32,7 @@
 
 (require 'f)
 (require 'cl-lib)
+(require 'json)
 
 (defgroup cov nil
   "The group for everything in cov.el")
@@ -175,7 +176,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
   (or cov-coverage-file
       (setq cov-coverage-file (cov--locate-coverage (buffer-file-name)))))
 
-(defun cov--parse (buffer)
+(defun cov--gcov-parse (buffer filename)
   "Parse a buffer containing gcov file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
   (let ((more t)
         matches)
@@ -193,11 +194,32 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
         (setq more (= 0 (forward-line 1)))))
     matches))
 
-(defun cov--read-and-parse (file-path)
-  "Read coverage file FILE-PATH into temp buffer and parses it using `cov--parse'."
-  (with-temp-buffer
-    (insert-file-contents file-path)
-    (cov--parse (current-buffer))))
+(defun cov--coveralls-parse (buffer filename)
+  "Parse a buffer containing coveralls file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
+  (let*
+      ((json-object-type 'hash-table)
+       (json-array-type 'list)
+       (coverage (json-read))
+       (file (f-filename filename))
+       (linenum 1)
+       matches)
+    ;; Look for the right file in source_files.
+    (dolist (source (gethash "source_files" coverage))
+      (when (equal file (gethash "name" source))
+        (dolist (count (gethash "coverage" source))
+          (when count
+            (push (list linenum count) matches))
+          (setq linenum (+ linenum 1)))))
+    matches))
+
+(defun cov--read-and-parse (file-path format)
+  "Read coverage file FILE-PATH in FORMAT into temp buffer and parses it using `cov--FORMAT-parse'."
+  (let ((filename (buffer-file-name)))
+    (with-temp-buffer
+      (insert-file-contents file-path)
+      (funcall (intern (concat "cov--"  (symbol-name format) "-parse"))
+               (current-buffer)
+               filename))))
 
 (defun cov--make-overlay (line fringe help)
   "Create an overlay for the line"
@@ -259,7 +281,7 @@ code's execution frequency"
   (interactive)
   (let ((cov (cov--coverage)))
     (if cov
-        (let* ((lines (cov--read-and-parse (car cov)))
+        (let* ((lines (cov--read-and-parse (car cov) (cdr cov)))
                (max (cl-reduce 'max (cons 0 (mapcar 'cl-second lines))))
                (displacement (cov--calc-line-displacement))
                (max-line (+ (line-number-at-pos (point-max)) displacement)))
