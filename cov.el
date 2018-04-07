@@ -185,9 +185,12 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
   (or cov-coverage-file
       (setq cov-coverage-file (cov--locate-coverage (buffer-file-name)))))
 
-(defun cov--gcov-parse (buffer filename)
+(defun cov--gcov-parse (buffer file-path)
   "Parse a buffer containing gcov file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
   (let ((more t)
+        ;; Derive the name of the covered file from the filename of
+        ;; the coverage file.
+        (filename (file-name-sans-extension (f-filename file-path)))
         matches)
     (save-match-data
       (while more
@@ -201,34 +204,32 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
                     matches)))
         (end-of-line)
         (setq more (= 0 (forward-line 1)))))
-    matches))
+    (list (cons filename matches))))
 
-(defun cov--coveralls-parse (buffer filename)
+(defun cov--coveralls-parse (buffer file-path)
   "Parse a buffer containing coveralls file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
   (let*
       ((json-object-type 'hash-table)
        (json-array-type 'list)
        (coverage (json-read))
-       (file (f-filename filename))
-       (linenum 1)
-       matches)
-    ;; Look for the right file in source_files.
+       matches list)
     (dolist (source (gethash "source_files" coverage))
-      (when (equal file (gethash "name" source))
+      (let ((file-coverage (list))
+            (linenum 1))
         (dolist (count (gethash "coverage" source))
           (when count
-            (push (list linenum count) matches))
-          (setq linenum (+ linenum 1)))))
+            (push (list linenum count) file-coverage))
+          (setq linenum (+ linenum 1)))
+        (push (cons (gethash "name" source) file-coverage) matches)))
     matches))
 
 (defun cov--read-and-parse (file-path format)
   "Read coverage file FILE-PATH in FORMAT into temp buffer and parses it using `cov--FORMAT-parse'."
-  (let ((filename (buffer-file-name)))
-    (with-temp-buffer
-      (insert-file-contents file-path)
-      (funcall (intern (concat "cov--"  (symbol-name format) "-parse"))
-               (current-buffer)
-               filename))))
+  (with-temp-buffer
+    (insert-file-contents file-path)
+    (funcall (intern (concat "cov--"  (symbol-name format) "-parse"))
+             (current-buffer)
+             file-path)))
 
 (defun cov--make-overlay (line fringe help)
   "Create an overlay for the line"
@@ -290,7 +291,9 @@ code's execution frequency"
   (interactive)
   (let ((cov (cov--coverage)))
     (if cov
-        (let* ((lines (cov--read-and-parse (car cov) (cdr cov)))
+        (let* ((coverage (cov--read-and-parse (car cov) (cdr cov)))
+               (file-coverage (assoc (f-filename (buffer-file-name)) coverage))
+               (lines (or (and file-coverage (cdr file-coverage)) (list)))
                (max (cl-reduce 'max (cons 0 (mapcar 'cl-second lines))))
                (displacement (cov--calc-line-displacement))
                (max-line (+ (line-number-at-pos (point-max)) displacement)))
