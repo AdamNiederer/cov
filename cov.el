@@ -32,6 +32,7 @@
 
 (require 'f)
 (require 'cl-lib)
+(require 'json)
 
 (defgroup cov nil
   "The group for everything in cov.el")
@@ -115,7 +116,7 @@ that the specified COVERAGE-TOOL has created the data.
 
 Currently the only supported COVERAGE-TOOL is gcov.")
 
-(defvar cov-coverage-file-paths '(".")
+(defvar cov-coverage-file-paths '("." cov--locate-coveralls)
   "List of file paths to use to search for coverage files as strings or function.
 
 Relative paths:
@@ -168,6 +169,15 @@ The function iterates over `cov-coverage-file-path' for path candidates or locat
                  (funcall path-or-fun file-dir file-name)))
              cov-coverage-file-paths)))
 
+(defun cov--locate-coveralls (file-dir file-name)
+  "Locate coveralls coverage from FILE-DIR for FILE-NAME.
+
+Looks for a `coverage-final.json' file. Return nil it not found."
+  (let ((try (format "%s/coverage-final.json"
+                     file-dir)))
+    (and (file-exists-p try)
+         (cons (file-truename try) 'coveralls))))
+
 (defun cov--coverage ()
   "Return coverage file and tool as a cons cell of the form (COV-FILE-PATH . COVERAGE-TOOL) for current buffer.
 
@@ -175,9 +185,12 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
   (or cov-coverage-file
       (setq cov-coverage-file (cov--locate-coverage (buffer-file-name)))))
 
-(defun cov--parse (buffer)
+(defun cov--gcov-parse (buffer file-path)
   "Parse a buffer containing gcov file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
   (let ((more t)
+        ;; Derive the name of the covered file from the filename of
+        ;; the coverage file.
+        (filename (file-name-sans-extension (f-filename file-path)))
         matches)
     (save-match-data
       (while more
@@ -191,13 +204,32 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
                     matches)))
         (end-of-line)
         (setq more (= 0 (forward-line 1)))))
+    (list (cons filename matches))))
+
+(defun cov--coveralls-parse (buffer file-path)
+  "Parse a buffer containing coveralls file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
+  (let*
+      ((json-object-type 'hash-table)
+       (json-array-type 'list)
+       (coverage (json-read))
+       matches list)
+    (dolist (source (gethash "source_files" coverage))
+      (let ((file-coverage (list))
+            (linenum 1))
+        (dolist (count (gethash "coverage" source))
+          (when count
+            (push (list linenum count) file-coverage))
+          (setq linenum (+ linenum 1)))
+        (push (cons (gethash "name" source) file-coverage) matches)))
     matches))
 
-(defun cov--read-and-parse (file-path)
-  "Read coverage file FILE-PATH into temp buffer and parses it using `cov--parse'."
+(defun cov--read-and-parse (file-path format)
+  "Read coverage file FILE-PATH in FORMAT into temp buffer and parses it using `cov--FORMAT-parse'."
   (with-temp-buffer
     (insert-file-contents file-path)
-    (cov--parse (current-buffer))))
+    (funcall (intern (concat "cov--"  (symbol-name format) "-parse"))
+             (current-buffer)
+             file-path)))
 
 (defun cov--make-overlay (line fringe help)
   "Create an overlay for the line"
@@ -259,7 +291,9 @@ code's execution frequency"
   (interactive)
   (let ((cov (cov--coverage)))
     (if cov
-        (let* ((lines (cov--read-and-parse (car cov)))
+        (let* ((coverage (cov--read-and-parse (car cov) (cdr cov)))
+               (file-coverage (assoc (f-filename (buffer-file-name)) coverage))
+               (lines (or (and file-coverage (cdr file-coverage)) (list)))
                (max (cl-reduce 'max (cons 0 (mapcar 'cl-second lines))))
                (displacement (cov--calc-line-displacement))
                (max-line (+ (line-number-at-pos (point-max)) displacement)))
