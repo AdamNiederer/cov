@@ -116,7 +116,7 @@ that the specified COVERAGE-TOOL has created the data.
 
 Currently the only supported COVERAGE-TOOL is gcov.")
 
-(defvar cov-coverage-file-paths '(".")
+(defvar cov-coverage-file-paths '("." cov--locate-coveralls)
   "List of file paths to use to search for coverage files as strings or function.
 
 Relative paths:
@@ -168,6 +168,15 @@ The function iterates over `cov-coverage-file-path' for path candidates or locat
                    (cov--locate-coverage-path file-dir file-name path-or-fun)
                  (funcall path-or-fun file-dir file-name)))
              cov-coverage-file-paths)))
+
+(defun cov--locate-coveralls (file-dir file-name)
+  "Locate coveralls coverage from FILE-DIR for FILE-NAME.
+
+Looks for a `coverage-final.json' file. Return nil it not found."
+  (let ((try (format "%s/coverage-final.json"
+                     file-dir)))
+    (and (file-exists-p try)
+         (cons (file-truename try) 'coveralls))))
 
 (defun cov--coverage ()
   "Return coverage file and tool as a cons cell of the form (COV-FILE-PATH . COVERAGE-TOOL) for current buffer.
