@@ -51,6 +51,16 @@
              (cov--gcov-parse (current-buffer) "test")
              '(("test" (24 0)))))))
 
+;; cov--coveralls-parse
+(ert-deftest cov--coveralls-parse--basic-test ()
+  (with-temp-buffer
+    (insert "{\"source_files\":[{\"coverage\":[0,null,3,1,2,0,null],\"source\":\"not covered\nignored\ncovered thee times\ncovered once\ncovered twice\nnot covered either\nignored too\n\",\"name\":\"test\"}]}")
+    (goto-char 1)
+    (should (equal
+             (cov--coveralls-parse (current-buffer) "test")
+             ;; The coverage is actually returned in reverse order.
+             '(("test" (6 0) (5 2) (4 1) (3 3) (1 0)))))))
+
 ;; cov--locate-coverage-postfix
 (ert-deftest cov--locate-coverage-postfix-test ()
   (let* ((path test-path)
