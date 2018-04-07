@@ -2,54 +2,54 @@
 
 (require 'cov)
 
-;; cov-parse
-(ert-deftest cov--parse--hyphen-test ()
+;; cov--gcov-parse
+(ert-deftest cov--gcov-parse--hyphen-test ()
   (with-temp-buffer
     (insert "        -:   22:        ")
     (goto-char 1)
     (should (equal
-             (cov--parse (current-buffer))
-             '()))))
+             (cov--gcov-parse (current-buffer) "test")
+             '(("test"))))))
 
-(ert-deftest cov--parse--block-test ()
+(ert-deftest cov--gcov-parse--block-test ()
   (with-temp-buffer
     (insert "        1:   21-block  0")
     (goto-char 1)
     (should (equal
-             (cov--parse (current-buffer))
-             '()))))
+             (cov--gcov-parse (current-buffer) "test")
+             '(("test"))))))
 
-(ert-deftest cov--parse--executed-test ()
+(ert-deftest cov--gcov-parse--executed-test ()
   (with-temp-buffer
     (insert "        6:   24:        ")
     (goto-char 1)
     (should (equal
-             (cov--parse (current-buffer))
-             '((24 6))))))
+             (cov--gcov-parse (current-buffer) "test")
+             '(("test" (24 6)))))))
 
-(ert-deftest cov--parse--big-value-test ()
+(ert-deftest cov--gcov-parse--big-value-test ()
   (with-temp-buffer
     (insert "999999999:99999:        ")
     (goto-char 1)
     (should (equal
-             (cov--parse (current-buffer))
-             '((99999 999999999))))))
+             (cov--gcov-parse (current-buffer) "test")
+             '(("test" (99999 999999999)))))))
 
-(ert-deftest cov--parse--multiline-test ()
+(ert-deftest cov--gcov-parse--multiline-test ()
   (with-temp-buffer
     (insert "        6:    1:\n       16:    2:\n       66:    3:")
     (goto-char 1)
     (should (equal
-             (cov--parse (current-buffer))
-             '((3 66) (2 16) (1 6))))))
+             (cov--gcov-parse (current-buffer) "test")
+             '(("test" (3 66) (2 16) (1 6)))))))
 
-(ert-deftest cov--parse--not-executed-test ()
+(ert-deftest cov--gcov-parse--not-executed-test ()
   (with-temp-buffer
     (insert "    #####:   24:        ")
     (goto-char 1)
     (should (equal
-             (cov--parse (current-buffer))
-             '((24 0))))))
+             (cov--gcov-parse (current-buffer) "test")
+             '(("test" (24 0)))))))
 
 ;; cov--locate-coverage-postfix
 (ert-deftest cov--locate-coverage-postfix-test ()
