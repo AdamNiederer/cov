@@ -33,12 +33,14 @@
 (require 'f)
 (require 'cl-lib)
 (require 'json)
+(require 'seq)
 
 (defgroup cov nil
   "The group for everything in cov.el")
 
 (defgroup cov-faces nil
-  "Faces for cov.")
+  "Faces for cov."
+  :group 'cov)
 
 (defcustom cov-high-threshold .85
   "The threshold at which a line will be painted with `cov-med-face'.
@@ -167,7 +169,6 @@ to your init.el.")
 (defvar-local cov-coverage-file nil
   "Last located coverage file and tool.")
 
-(defvar cov-overlays '())
 (defconst cov-line-re "^ *\\(\\([0-9#]+\\): *\\([0-9]+\\)\\):")
 (defconst cov-intermediate-line-re "^lcount:\\(\\([0-9]+\\),\\([0-9]+\\)\\)")
 
@@ -213,7 +214,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
       (setq cov-coverage-file (cov--locate-coverage (buffer-file-name)))))
 
 (defun cov--gcov-parse (buffer file-path)
-  "Parse a buffer containing gcov file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
+  "Parse a BUFFER containing gcov file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
   (let ((more t)
         ;; Derive the name of the covered file from the filename of
         ;; the coverage file.
@@ -221,14 +222,14 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
         matches)
     (save-match-data
       (while more
-        (if (looking-at cov-line-re)
-            (push (list (string-to-number (match-string-no-properties 3))
-                        (string-to-number (match-string-no-properties 2)))
-                  matches)
-          (if (looking-at cov-intermediate-line-re)
-              (push (list (string-to-number (match-string-no-properties 2))
-                          (string-to-number (match-string-no-properties 3)))
-                    matches)))
+        (cond ((looking-at cov-line-re)
+               (push (list (string-to-number (match-string-no-properties 3))
+                           (string-to-number (match-string-no-properties 2)))
+                     matches))
+              ((looking-at cov-intermediate-line-re)
+               (push (list (string-to-number (match-string-no-properties 2))
+                           (string-to-number (match-string-no-properties 3)))
+                     matches)))
         (end-of-line)
         (setq more (= 0 (forward-line 1)))))
     (list (cons filename matches))))
@@ -259,17 +260,14 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
              file-path)))
 
 (defun cov--make-overlay (line fringe help)
-  "Create an overlay for line"
-  (let (ol-front-mark ol-back-mark ol)
-    (save-excursion
-      (goto-char (point-min))
-      (forward-line (1- line))
-      (setq ol-front-mark (point))
-      (end-of-line)
-      (setq ol-back-mark (point)))
-    (setq ol (make-overlay ol-front-mark ol-back-mark))
+  "Create an overlay for the line"
+  (let ((ol (save-excursion
+              (goto-char (point-min))
+              (forward-line (1- line))
+              (make-overlay (point) (line-end-position)))))
     (overlay-put ol 'before-string fringe)
     (overlay-put ol 'help-echo help)
+    (overlay-put ol 'cov t)
     ol))
 
 (defun cov--get-face (percentage)
@@ -297,12 +295,11 @@ code's execution frequency"
 
 (defun cov--set-overlay (line max displacement)
   (let* ((times-executed (nth 1 line))
-         (percentage (/ times-executed (float max)))
-         (overlay (cov--make-overlay
-                   (- (cl-first line) displacement)
-                   (cov--get-fringe percentage)
-                   (cov--help times-executed percentage))))
-    (push overlay cov-overlays)))
+         (percentage (/ times-executed (float max))))
+     (cov--make-overlay
+      (- (cl-first line) displacement)
+      (cov--get-fringe percentage)
+      (cov--help times-executed percentage))))
 
 (defun cov--calc-line-displacement ()
   "Get line number displacement if buffer is narrowed."
@@ -331,9 +328,14 @@ code's execution frequency"
       (message "No coverage data found for %s." (buffer-file-name)))))
 
 (defun cov-clear-overlays ()
+  "Remove all cov overlays."
   (interactive)
-  (while (< 0 (cl-list-length cov-overlays))
-    (delete-overlay (pop cov-overlays))))
+  (remove-overlays (point-min) (point-max) 'cov t))
+
+(defun cov--overlays ()
+  "Return a list of all cov overlays."
+  (seq-filter (lambda (ov) (overlay-get ov 'cov))
+              (overlays-in (point-min) (point-max))))
 
 (defun cov-visit-coverage-file ()
   "Visit coverage file."
