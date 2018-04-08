@@ -226,7 +226,7 @@ returned. Otherwise `cov--locate-coverage' is called."
   (or cov-coverage-file
       (setq cov-coverage-file (cov--locate-coverage (buffer-file-name)))))
 
-(defun cov--gcov-parse (buffer file-path)
+(defun cov--gcov-parse (file-path)
   "Parse a BUFFER containing gcov file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
   (let ((more t)
         ;; Derive the name of the covered file from the filename of
@@ -247,7 +247,7 @@ returned. Otherwise `cov--locate-coverage' is called."
         (setq more (= 0 (forward-line 1)))))
     (list (cons filename matches))))
 
-(defun cov--coveralls-parse (buffer file-path)
+(defun cov--coveralls-parse (file-path)
   "Parse a buffer containing coveralls file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
   (let*
       ((json-object-type 'hash-table)
@@ -269,7 +269,6 @@ returned. Otherwise `cov--locate-coverage' is called."
   (with-temp-buffer
     (insert-file-contents file-path)
     (funcall (intern (concat "cov--"  (symbol-name format) "-parse"))
-             (current-buffer)
              file-path)))
 
 (defun cov--make-overlay (line fringe help)
