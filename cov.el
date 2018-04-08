@@ -36,7 +36,8 @@
 (require 'seq)
 
 (defgroup cov nil
-  "The group for everything in cov.el")
+  "The group for everything in cov.el"
+  :group 'tools)
 
 (defgroup cov-faces nil
   "Faces for cov."
