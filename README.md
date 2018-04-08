@@ -79,6 +79,20 @@ coverage tool.
 
 ## Develop
 
+`cov.el` can be extended to understand more coverage formats. To add
+a new format:
+
+1. Add a function to `cov-coverage-file-paths` that locates a coverage
+   file for a given file. If a coverage file is found, it should
+   return a cons of the coverage file path and an identifier, like
+   `(cons filepath 'mytool)`
+2. Implement a `cov--mytool-parse`. The parse function is called with
+   a temp buffer with the coverage file data as `(current-buffer)` and
+   should parse the data and return the coverage as a alist of files
+   to coverage mapping. Coverage data is simply a list of two element
+   lists, where the first element is the line number and the second
+   the coverage count.
+
 ### Test
 Install dependencides:
 ```bash
