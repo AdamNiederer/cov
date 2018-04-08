@@ -173,6 +173,9 @@ to your init.el.")
 (defvar-local cov-coverage-file nil
   "Last located coverage file and tool.")
 
+(defvar cov-coverages (make-hash-table :test 'equal)
+  "Storage of coverage data.")
+
 (defconst cov-line-re "^ *\\(\\([0-9#]+\\): *\\([0-9]+\\)\\):")
 (defconst cov-intermediate-line-re "^lcount:\\(\\([0-9]+\\),\\([0-9]+\\)\\)")
 
@@ -341,15 +344,34 @@ DISPLACEMENT to account for lines hidden by narrowing."
           (widen)
           (1- (line-number-at-pos start)))))))
 
+(defun cov--get-buffer-coverage ()
+  "Return coverage for current buffer.
+
+Finds the coverage data for the file in `cov-coverages', loading
+it if necessary, or reloading if the file has changed."
+  (let ((cov (cov--coverage)))
+    (when cov
+      (let* ((file (car cov))
+             (stored-data (gethash file cov-coverages)))
+        ;; File mtime changed, reload.
+        (when (and stored-data (not (equal (car stored-data)
+                                           (nth 5 (file-attributes file)))))
+          (message "Reloading coverage file.")
+          (setq stored-data nil))
+        ;; Coverage not loaded.
+        (unless stored-data
+          (setq stored-data (list (nth 5 (file-attributes file))
+                                  (cov--read-and-parse file (cdr cov))))
+          (puthash file stored-data cov-coverages))
+        ;; Find file coverage.
+        (cdr (assoc (f-filename (buffer-file-name)) (nth 1 stored-data)))))))
+
 (defun cov-set-overlays ()
   "Add cov overlays."
   (interactive)
-  (let ((cov (cov--coverage)))
-    (if cov
-        (let* ((coverage (cov--read-and-parse (car cov) (cdr cov)))
-               (file-coverage (assoc (f-filename (buffer-file-name)) coverage))
-               (lines (or (and file-coverage (cdr file-coverage)) (list)))
-               (max (cl-reduce 'max (cons 0 (mapcar 'cl-second lines))))
+  (let ((lines (cov--get-buffer-coverage)))
+    (if lines
+        (let* ((max (cl-reduce 'max (cons 0 (mapcar 'cl-second lines))))
                (displacement (cov--calc-line-displacement))
                (max-line (+ (line-number-at-pos (point-max)) displacement)))
           (dolist (line-data lines)
