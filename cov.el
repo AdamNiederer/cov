@@ -135,7 +135,7 @@ COVERAGE-TOOL has created the data.
 Currently the only supported COVERAGE-TOOL is gcov.")
 
 (defvar cov-coverage-file-paths '("." cov--locate-coveralls)
-  "List of functions returning file paths containing coverage files, or paths themselves.
+  "List of paths or functions returning file paths containing coverage files.
 
 Relative paths:
  .      search in current directory
@@ -174,11 +174,16 @@ to your init.el.")
 (defconst cov-intermediate-line-re "^lcount:\\(\\([0-9]+\\),\\([0-9]+\\)\\)")
 
 (defun cov--locate-coverage-postfix (file-dir file-name path extension)
+  "Return full path of coverage file, if found.
+
+Look in FILE-DIR for FILE-NAME, under PATH, with extension EXTENSION."
   (let ((try (format "%s/%s/%s%s" file-dir path file-name extension)))
     (and (file-exists-p try) (file-truename try))))
 
 (defun cov--locate-coverage-path (file-dir file-name path)
-  "Locate coverage file .gcov of given FILE-PATH."
+  "Locate coverage file.
+
+Look in FILE-DIR for coverage for FILE-NAME in PATH."
   (cl-some (lambda (extension-tool)
              (let* ((extension (car extension-tool))
                     (tool (cdr extension-tool))
@@ -189,7 +194,10 @@ to your init.el.")
 (defun cov--locate-coverage (file-path)
   "Locate coverage file of given source file FILE-PATH.
 
-The function iterates over `cov-coverage-file-path' for path candidates or locate functions. The first found file will be returned as a cons cell of the form (COV-FILE-PATH . COVERAGE-TOOL). If no file is found nil is returned."
+The function iterates over `cov-coverage-file-path' for path
+candidates or locate functions. The first found file will be
+returned as a cons cell of the form (COV-FILE-PATH .
+COVERAGE-TOOL). If no file is found nil is returned."
   (let ((file-dir (f-dirname file-path))
         (file-name (f-filename file-path)))
     (cl-some (lambda (path-or-fun)
@@ -208,9 +216,13 @@ Looks for a `coverage-final.json' file. Return nil it not found."
          (cons (file-truename try) 'coveralls))))
 
 (defun cov--coverage ()
-  "Return coverage file and tool as a cons cell of the form (COV-FILE-PATH . COVERAGE-TOOL) for current buffer.
+  "Return coverage file and tool.
 
-If `cov-coverage-file' is non nil, the value of that variable is returned. Otherwise `cov--locate-coverage' is called."
+Returns a cons cell of the form (COV-FILE-PATH . COVERAGE-TOOL)
+for current buffer.
+
+If `cov-coverage-file' is non nil, the value of that variable is
+returned. Otherwise `cov--locate-coverage' is called."
   (or cov-coverage-file
       (setq cov-coverage-file (cov--locate-coverage (buffer-file-name)))))
 
@@ -241,7 +253,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
       ((json-object-type 'hash-table)
        (json-array-type 'list)
        (coverage (json-read))
-       matches list)
+       (matches (list)))
     (dolist (source (gethash "source_files" coverage))
       (let ((file-coverage (list))
             (linenum 1))
@@ -253,7 +265,7 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
     matches))
 
 (defun cov--read-and-parse (file-path format)
-  "Read coverage file FILE-PATH in FORMAT into temp buffer and parses it using `cov--FORMAT-parse'."
+  "Read coverage file FILE-PATH in FORMAT into temp buffer and parse it using `cov--FORMAT-parse'."
   (with-temp-buffer
     (insert-file-contents file-path)
     (funcall (intern (concat "cov--"  (symbol-name format) "-parse"))
@@ -261,7 +273,9 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
              file-path)))
 
 (defun cov--make-overlay (line fringe help)
-  "Create an overlay for the line"
+  "Create an overlay for the LINE.
+
+Uses the FRINGE and sets HELP as `help-echo'."
   (let ((ol (save-excursion
               (goto-char (point-min))
               (forward-line (1- line))
@@ -272,35 +286,42 @@ If `cov-coverage-file' is non nil, the value of that variable is returned. Other
     ol))
 
 (defun cov--get-face (percentage)
-    "Return the appropriate face to color the line given use preferences and the
-code's execution frequency"
-    (cond
-     ((and cov-coverage-mode (> percentage 0))
-      'cov-coverage-run-face)
-     ((and cov-coverage-mode (= percentage 0))
-      'cov-coverage-not-run-face)
-     ((< cov-high-threshold percentage)
-      'cov-heavy-face)
-     ((< cov-med-threshold percentage)
-      'cov-med-face)
-     ((> percentage 0)
-      'cov-light-face)
-     (t 'cov-none-face)))
+  "Get the appropriate face for the PERCENTAGE coverage.
+
+Selects the face depending on user preferences and the code's
+execution frequency"
+  (cond
+   ((and cov-coverage-mode (> percentage 0))
+    'cov-coverage-run-face)
+   ((and cov-coverage-mode (= percentage 0))
+    'cov-coverage-not-run-face)
+   ((< cov-high-threshold percentage)
+    'cov-heavy-face)
+   ((< cov-med-threshold percentage)
+    'cov-med-face)
+   ((> percentage 0)
+    'cov-light-face)
+   (t 'cov-none-face)))
 
 (defun cov--get-fringe (percentage)
-  "Returns the fringe with the correct face"
+  "Return the fringe with the correct face for PERCENTAGE."
   (propertize "f" 'display `(left-fringe ,cov-fringe-symbol ,(cov--get-face percentage))))
 
 (defun cov--help (n percentage)
+  "Return help text for the given N count and PERCENTAGE."
   (format "cov: executed %d times (~%.2f%% of highest)" n (* percentage 100)))
 
 (defun cov--set-overlay (line max displacement)
+  "Set the overlay for LINE.
+
+MAX is the maximum coverage count for any line in the file. Use
+DISPLACEMENT to account for lines hidden by narrowing."
   (let* ((times-executed (nth 1 line))
          (percentage (/ times-executed (float max))))
-     (cov--make-overlay
-      (- (cl-first line) displacement)
-      (cov--get-fringe percentage)
-      (cov--help times-executed percentage))))
+    (cov--make-overlay
+     (- (cl-first line) displacement)
+     (cov--get-fringe percentage)
+     (cov--help times-executed percentage))))
 
 (defun cov--calc-line-displacement ()
   "Get line number displacement if buffer is narrowed."
@@ -313,6 +334,7 @@ code's execution frequency"
           (1- (line-number-at-pos start)))))))
 
 (defun cov-set-overlays ()
+  "Add cov overlays."
   (interactive)
   (let ((cov (cov--coverage)))
     (if cov
