@@ -226,12 +226,15 @@ returned. Otherwise `cov--locate-coverage' is called."
   (or cov-coverage-file
       (setq cov-coverage-file (cov--locate-coverage (buffer-file-name)))))
 
-(defun cov--gcov-parse (file-path)
-  "Parse a BUFFER containing gcov file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
+(defun cov--gcov-parse ()
+  "Parse gcov coverage.
+
+Parses `(current-buffer)' containing gcov file, filter unused
+lines, and return a list of (FILE . (LINE-NUM TIMES-RAN))."
   (let ((more t)
         ;; Derive the name of the covered file from the filename of
         ;; the coverage file.
-        (filename (file-name-sans-extension (f-filename file-path)))
+        (filename (file-name-sans-extension (f-filename cov-coverage-file)))
         matches)
     (save-match-data
       (while more
@@ -247,8 +250,11 @@ returned. Otherwise `cov--locate-coverage' is called."
         (setq more (= 0 (forward-line 1)))))
     (list (cons filename matches))))
 
-(defun cov--coveralls-parse (file-path)
-  "Parse a buffer containing coveralls file, filter unused lines, and return a list of (LINE-NUM TIMES-RAN)."
+(defun cov--coveralls-parse ()
+  "Parse coveralls coverage.
+
+Parse coveralls data in `(current-buffer)' and return a list
+of (FILE . (LINE-NUM TIMES-RAN))."
   (let*
       ((json-object-type 'hash-table)
        (json-array-type 'list)
@@ -268,8 +274,8 @@ returned. Otherwise `cov--locate-coverage' is called."
   "Read coverage file FILE-PATH in FORMAT into temp buffer and parse it using `cov--FORMAT-parse'."
   (with-temp-buffer
     (insert-file-contents file-path)
-    (funcall (intern (concat "cov--"  (symbol-name format) "-parse"))
-             file-path)))
+    (setq-local cov-coverage-file file-path)
+    (funcall (intern (concat "cov--"  (symbol-name format) "-parse")))))
 
 (defun cov--make-overlay (line fringe help)
   "Create an overlay for the LINE.

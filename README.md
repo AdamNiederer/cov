@@ -85,7 +85,8 @@ a new format:
 1. Add a function to `cov-coverage-file-paths` that locates a coverage
    file for a given file. If a coverage file is found, it should
    return a cons of the coverage file path and an identifier, like
-   `(cons filepath 'mytool)`
+   `(cons filepath 'mytool)`. The original name of the file can be
+   found in the `cov-coverage-file` buffer local variable.
 2. Implement a `cov--mytool-parse`. The parse function is called with
    a temp buffer with the coverage file data as `(current-buffer)` and
    should parse the data and return the coverage as a alist of files
