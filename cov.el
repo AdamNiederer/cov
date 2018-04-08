@@ -28,6 +28,9 @@
 
 ;;; Commentary:
 
+;; This mode locates and parses multiple coverage formats and display
+;; coverage using fringe overlays.
+
 ;;; Code:
 
 (require 'f)
@@ -206,7 +209,7 @@ COVERAGE-TOOL). If no file is found nil is returned."
                  (funcall path-or-fun file-dir file-name)))
              cov-coverage-file-paths)))
 
-(defun cov--locate-coveralls (file-dir file-name)
+(defun cov--locate-coveralls (file-dir _file-name)
   "Locate coveralls coverage from FILE-DIR for FILE-NAME.
 
 Looks for a `coverage-final.json' file. Return nil it not found."
