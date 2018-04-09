@@ -37,6 +37,7 @@
 (require 'cl-lib)
 (require 'json)
 (require 'seq)
+(require 'subr-x)
 
 (defgroup cov nil
   "The group for everything in cov.el"
@@ -216,10 +217,9 @@ COVERAGE-TOOL). If no file is found nil is returned."
   "Locate coveralls coverage from FILE-DIR for FILE-NAME.
 
 Looks for a `coverage-final.json' file. Return nil it not found."
-  (let ((try (format "%s/coverage-final.json"
-                     file-dir)))
-    (and (file-exists-p try)
-         (cons (file-truename try) 'coveralls))))
+  (let ((dir (locate-dominating-file file-dir "coverage-final.json")))
+    (when dir
+      (cons (file-truename (f-join dir "coverage-final.json")) 'coveralls))))
 
 (defun cov--coverage ()
   "Return coverage file and tool.
@@ -364,7 +364,8 @@ it if necessary, or reloading if the file has changed."
                                   (cov--read-and-parse file (cdr cov))))
           (puthash file stored-data cov-coverages))
         ;; Find file coverage.
-        (cdr (assoc (f-filename (buffer-file-name)) (nth 1 stored-data)))))))
+        (let ((common (f-common-parent (list file (buffer-file-name)))))
+          (cdr (assoc (string-remove-prefix common (buffer-file-name)) (nth 1 stored-data))))))))
 
 (defun cov-set-overlays ()
   "Add cov overlays."
