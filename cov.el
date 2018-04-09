@@ -352,20 +352,28 @@ it if necessary, or reloading if the file has changed."
   (let ((cov (cov--coverage)))
     (when cov
       (let* ((file (car cov))
-             (stored-data (gethash file cov-coverages)))
+             (stored-data (gethash file cov-coverages))
+             (buffers))
         ;; File mtime changed, reload.
         (when (and stored-data (not (equal (car stored-data)
                                            (nth 5 (file-attributes file)))))
+          ;; Save the list of buffers that use this coverage, it's added again below.
+          (setq buffers (nth 1 stored-data))
           (message "Reloading coverage file.")
           (setq stored-data nil))
         ;; Coverage not loaded.
         (unless stored-data
           (setq stored-data (list (nth 5 (file-attributes file))
+                                  buffers
                                   (cov--read-and-parse file (cdr cov))))
           (puthash file stored-data cov-coverages))
+        ;; Register current buffer as user of this coverage.
+        (if (nth 1 stored-data)
+            (push (current-buffer) (nth 1 stored-data))
+          (setf (nth 1 stored-data) (list (current-buffer))))
         ;; Find file coverage.
         (let ((common (f-common-parent (list file (buffer-file-name)))))
-          (cdr (assoc (string-remove-prefix common (buffer-file-name)) (nth 1 stored-data))))))))
+          (cdr (assoc (string-remove-prefix common (buffer-file-name)) (nth 2 stored-data))))))))
 
 (defun cov-set-overlays ()
   "Add cov overlays."
