@@ -230,7 +230,9 @@ for current buffer.
 If `cov-coverage-file' is non nil, the value of that variable is
 returned. Otherwise `cov--locate-coverage' is called."
   (or cov-coverage-file
-      (setq cov-coverage-file (cov--locate-coverage (buffer-file-name)))))
+      ;; In case we're enabled in a buffer without a file.
+      (when (buffer-file-name)
+        (setq cov-coverage-file (cov--locate-coverage (buffer-file-name))))))
 
 (defun cov--gcov-parse ()
   "Parse gcov coverage.
