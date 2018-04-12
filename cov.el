@@ -377,9 +377,21 @@ it if necessary, or reloading if the file has changed."
               (cov-update))))
         ;; Register current buffer as user of this coverage.
         (setf (nth 1 stored-data) (cons (current-buffer) buffers))
+        (add-hook 'kill-buffer-hook 'cov-kill-buffer-hook)
         ;; Find file coverage.
         (let ((common (f-common-parent (list file (buffer-file-name)))))
-          (cdr (assoc (string-remove-prefix common (buffer-file-name)) (nth 2 stored-data))))))))
+          (cdr (assoc (string-remove-prefix common (buffer-file-name))
+                      (nth 2 stored-data))))))))
+
+(defun cov-kill-buffer-hook ()
+  "Unregister buffer with coverage data and clean out unused coverage."
+  (let ((keys (hash-table-keys cov-coverages)))
+    (dolist (file keys)
+      (let* ((coverage (gethash file cov-coverages))
+             (buffers (remove (current-buffer)
+                              (nth 1 coverage))))
+        (if buffers (setf (nth 1 coverage) buffers)
+          (remhash file cov-coverages))))))
 
 (defun cov-set-overlays ()
   "Add cov overlays."
