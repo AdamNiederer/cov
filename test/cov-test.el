@@ -7,48 +7,54 @@
   (with-temp-buffer
     (insert "        -:   22:        ")
     (goto-char 1)
+    (setq-local cov-coverage-file "test")
     (should (equal
-             (cov--gcov-parse (current-buffer) "test")
+             (cov--gcov-parse)
              '(("test"))))))
 
 (ert-deftest cov--gcov-parse--block-test ()
   (with-temp-buffer
     (insert "        1:   21-block  0")
     (goto-char 1)
+    (setq-local cov-coverage-file "test")
     (should (equal
-             (cov--gcov-parse (current-buffer) "test")
+             (cov--gcov-parse)
              '(("test"))))))
 
 (ert-deftest cov--gcov-parse--executed-test ()
   (with-temp-buffer
     (insert "        6:   24:        ")
     (goto-char 1)
+    (setq-local cov-coverage-file "test")
     (should (equal
-             (cov--gcov-parse (current-buffer) "test")
+             (cov--gcov-parse)
              '(("test" (24 6)))))))
 
 (ert-deftest cov--gcov-parse--big-value-test ()
   (with-temp-buffer
     (insert "999999999:99999:        ")
     (goto-char 1)
+    (setq-local cov-coverage-file "test")
     (should (equal
-             (cov--gcov-parse (current-buffer) "test")
+             (cov--gcov-parse)
              '(("test" (99999 999999999)))))))
 
 (ert-deftest cov--gcov-parse--multiline-test ()
   (with-temp-buffer
     (insert "        6:    1:\n       16:    2:\n       66:    3:")
     (goto-char 1)
+    (setq-local cov-coverage-file "test")
     (should (equal
-             (cov--gcov-parse (current-buffer) "test")
+             (cov--gcov-parse)
              '(("test" (3 66) (2 16) (1 6)))))))
 
 (ert-deftest cov--gcov-parse--not-executed-test ()
   (with-temp-buffer
     (insert "    #####:   24:        ")
     (goto-char 1)
+    (setq-local cov-coverage-file "test")
     (should (equal
-             (cov--gcov-parse (current-buffer) "test")
+             (cov--gcov-parse)
              '(("test" (24 0)))))))
 
 ;; cov--coveralls-parse
@@ -56,14 +62,16 @@
   (with-temp-buffer
     (insert "{\"source_files\":[{\"coverage\":[0,null,3,1,2,0,null],\"source\":\"not covered\nignored\ncovered thee times\ncovered once\ncovered twice\nnot covered either\nignored too\n\",\"name\":\"test\"}]}")
     (goto-char 1)
+    (setq-local cov-coverage-file "test")
     (should (equal
-             (cov--coveralls-parse (current-buffer) "test")
+             (cov--coveralls-parse)
              ;; The coverage is actually returned in reverse order.
              '(("test" (6 0) (5 2) (4 1) (3 3) (1 0)))))))
 
 ;; cov--locate-coverage-postfix
 (ert-deftest cov--locate-coverage-postfix-test ()
   (let* ((path test-path)
+         (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-postfix path "test" "." ".gcov"))
          (expected (file-truename (format "%s/test.gcov" path))))
     (should (equal
@@ -72,6 +80,7 @@
 
 (ert-deftest cov--locate-coverage-postfix---subdir-test ()
   (let* ((path test-path)
+         (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-postfix path "test" "../test" ".gcov"))
          (expected (file-truename (format "%s/test.gcov" path))))
     (should (equal
@@ -80,6 +89,7 @@
 
 (ert-deftest cov--locate-coverage-postfix--wrong-subdir-test ()
   (let* ((path test-path)
+         (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-postfix path "test" "wrong-subdir" ".gcov")))
     (should (equal
              actual
@@ -87,6 +97,7 @@
 
 (ert-deftest cov--locate-coverage-postfix--wrong-postfix-test ()
   (let* ((path test-path)
+         (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-postfix path "test" "." ".wrong-postfix")))
     (should (equal
              actual
@@ -95,6 +106,7 @@
 ;; cov--locate-coverage-path
 (ert-deftest cov--locate-coverage-path-test ()
   (let* ((path test-path)
+         (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-path path "test" "."))
          (expected (cons (file-truename (format "%s/test.gcov" path)) 'gcov)))
     (should (equal
@@ -103,6 +115,7 @@
 
 (ert-deftest cov--locate-coverage-path---subdir-test ()
   (let* ((path test-path)
+         (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-path path "test" "../test"))
          (expected (cons (file-truename (format "%s/test.gcov" path)) 'gcov)))
     (should (equal
@@ -111,6 +124,7 @@
 
 (ert-deftest cov--locate-coverage-path--wrong-subdir-test ()
   (let* ((path test-path)
+         (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-path path "test" "wrong-subdir")))
     (should (equal
              actual
@@ -119,6 +133,7 @@
 ;; cov--locate-coverage
 (ert-deftest cov--locate-coverage-test ()
   (let* ((path test-path)
+         (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage (format "%s/%s" path "test")))
          (expected (cons (file-truename (format "%s/test.gcov" path)) 'gcov)))
     (should (equal
@@ -127,6 +142,7 @@
 
 (ert-deftest cov--locate-coverage-wrong-file-test ()
   (let* ((path test-path)
+         (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage (format "%s/%s" path "wrong-file"))))
     (should (equal
              actual
