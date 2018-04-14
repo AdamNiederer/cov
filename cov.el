@@ -230,7 +230,9 @@ for current buffer.
 If `cov-coverage-file' is non nil, the value of that variable is
 returned. Otherwise `cov--locate-coverage' is called."
   (or cov-coverage-file
-      (setq cov-coverage-file (cov--locate-coverage (buffer-file-name)))))
+      ;; In case we're enabled in a buffer without a file.
+      (when (buffer-file-name)
+        (setq cov-coverage-file (cov--locate-coverage (buffer-file-name))))))
 
 (defun cov--gcov-parse ()
   "Parse gcov coverage.
@@ -375,9 +377,21 @@ it if necessary, or reloading if the file has changed."
               (cov-update))))
         ;; Register current buffer as user of this coverage.
         (setf (nth 1 stored-data) (cons (current-buffer) buffers))
+        (add-hook 'kill-buffer-hook 'cov-kill-buffer-hook)
         ;; Find file coverage.
         (let ((common (f-common-parent (list file (buffer-file-name)))))
-          (cdr (assoc (string-remove-prefix common (buffer-file-name)) (nth 2 stored-data))))))))
+          (cdr (assoc (string-remove-prefix common (buffer-file-name))
+                      (nth 2 stored-data))))))))
+
+(defun cov-kill-buffer-hook ()
+  "Unregister buffer with coverage data and clean out unused coverage."
+  (let ((keys (hash-table-keys cov-coverages)))
+    (dolist (file keys)
+      (let* ((coverage (gethash file cov-coverages))
+             (buffers (remove (current-buffer)
+                              (nth 1 coverage))))
+        (if buffers (setf (nth 1 coverage) buffers)
+          (remhash file cov-coverages))))))
 
 (defun cov-set-overlays ()
   "Add cov overlays."
