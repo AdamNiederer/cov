@@ -346,6 +346,10 @@ DISPLACEMENT to account for lines hidden by narrowing."
           (widen)
           (1- (line-number-at-pos start)))))))
 
+(defmacro cov--file-mtime (file)
+  "Return the last modification time of FILE."
+  (nth 5 (file-attributes file)))
+
 (defun cov--get-buffer-coverage ()
   "Return coverage for current buffer.
 
@@ -361,12 +365,12 @@ it if necessary, or reloading if the file has changed."
                                   (nth 1 stored-data))))
         ;; File mtime changed, reload.
         (when (and stored-data (not (equal (car stored-data)
-                                           (nth 5 (file-attributes file)))))
+                                           (cov--file-mtime file))))
           (message "Reloading coverage file.")
           (setq stored-data nil))
         ;; Coverage not loaded.
         (unless stored-data
-          (setq stored-data (list (nth 5 (file-attributes file))
+          (setq stored-data (list (cov--file-mtime file)
                                   buffers
                                   (cov--read-and-parse file (cdr cov))))
           (puthash file stored-data cov-coverages)
