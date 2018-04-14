@@ -350,6 +350,10 @@ DISPLACEMENT to account for lines hidden by narrowing."
   "Return the last modification time of FILE."
   (nth 5 (file-attributes file)))
 
+;; Structure for coverage data.
+(cl-defstruct cov-data
+  mtime buffers coverage)
+
 (defun cov--get-buffer-coverage ()
   "Return coverage for current buffer.
 
@@ -358,44 +362,48 @@ it if necessary, or reloading if the file has changed."
   (let ((cov (cov--coverage)))
     (when cov
       (let* ((file (car cov))
-             (stored-data (gethash file cov-coverages))
-             (buffers (seq-filter (lambda (buffer)
-                                    (and (buffer-live-p buffer)
-                                         (not (eq buffer (current-buffer)))))
-                                  (nth 1 stored-data))))
-        ;; File mtime changed, reload.
-        (when (and stored-data (not (equal (car stored-data)
-                                           (cov--file-mtime file))))
-          (message "Reloading coverage file.")
-          (setq stored-data nil))
-        ;; Coverage not loaded.
+             (stored-data (gethash file cov-coverages)))
         (unless stored-data
-          (setq stored-data (list (cov--file-mtime file)
-                                  buffers
-                                  (cov--read-and-parse file (cdr cov))))
-          (puthash file stored-data cov-coverages)
-          ;; Update buffers using this coverage.
-          (dolist (buffer buffers)
+          (setq stored-data (make-cov-data))
+          (puthash file stored-data cov-coverages))
+        ;; Register current buffer as user of this coverage.
+        (if (cov-data-buffers stored-data)
+            (unless (member (current-buffer) (cov-data-buffers stored-data))
+              (push (current-buffer) (cov-data-buffers stored-data)))
+          (setf (cov-data-buffers stored-data) (list (current-buffer))))
+        ;; File mtime changed, reload.
+        (when (not (equal (cov-data-mtime stored-data)
+                          (cov--file-mtime file)))
+          (message "Reloading coverage file.")
+          (setf (cov-data-coverage stored-data) nil))
+        ;; Coverage not loaded.
+        (unless (cov-data-coverage stored-data)
+          (setf (cov-data-coverage stored-data) (cov--read-and-parse file (cdr cov)))
+          (setf (cov-data-mtime stored-data) (cov--file-mtime file))
+          ;; Update other buffers using this coverage.
+          (dolist (buffer (remove (current-buffer) (cov-data-buffers stored-data)))
             (with-current-buffer buffer
               (message "Updating coverage for \"%s\"" (buffer-name buffer))
               (cov-update))))
-        ;; Register current buffer as user of this coverage.
-        (setf (nth 1 stored-data) (cons (current-buffer) buffers))
+
         (add-hook 'kill-buffer-hook 'cov-kill-buffer-hook)
         ;; Find file coverage.
         (let ((common (f-common-parent (list file (buffer-file-name)))))
           (cdr (assoc (string-remove-prefix common (buffer-file-name))
-                      (nth 2 stored-data))))))))
+                      (cov-data-coverage stored-data))))))))
 
 (defun cov-kill-buffer-hook ()
   "Unregister buffer with coverage data and clean out unused coverage."
-  (let ((keys (hash-table-keys cov-coverages)))
-    (dolist (file keys)
-      (let* ((coverage (gethash file cov-coverages))
-             (buffers (remove (current-buffer)
-                              (nth 1 coverage))))
-        (if buffers (setf (nth 1 coverage) buffers)
-          (remhash file cov-coverages))))))
+  ;; Only clean up when buffer have a file name. Buffers without a file
+  ;; cannot have coverage.
+  (when (buffer-file-name)
+    (let ((keys (hash-table-keys cov-coverages)))
+      (dolist (file keys)
+        (let* ((coverage (gethash file cov-coverages))
+               (buffers (remove (current-buffer)
+                                (cov-data-buffers coverage))))
+          (if buffers (setf (cov-data-buffers coverage) buffers)
+            (remhash file cov-coverages)))))))
 
 (defun cov-set-overlays ()
   "Add cov overlays."
