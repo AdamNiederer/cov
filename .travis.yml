@@ -30,5 +30,6 @@ script:
 notifications:
   email: false
 after_success:
-  # Upload coverage
-  - bash <(curl -s https://codecov.io/bash)
+  # Upload coverage, specify file explicitly to avoid the uploader uploading the
+  # test coverages in test/.
+  - bash <(curl -s https://codecov.io/bash) -f coverage-final.json
