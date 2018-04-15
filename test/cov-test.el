@@ -68,6 +68,17 @@
              ;; The coverage is actually returned in reverse order.
              '(("test" (6 0) (5 2) (4 1) (3 3) (1 0)))))))
 
+;; cov--clover-parse
+(ert-deftest cov--clover-parse--basic-test ()
+  (with-temp-buffer
+    (insert-file-contents (format "%s/clover/clover.xml" test-path))
+    (goto-char 1)
+    (setq-local cov-coverage-file "clover.xml")
+    (should (equal
+             (cov--clover-parse)
+             '(("test2" (3 100) (4 86) (5 85) (6 84) (7 46) (8 45) (9 44)
+                (10 1) (11 0)))))))
+
 ;; cov--locate-coverage-postfix
 (ert-deftest cov--locate-coverage-postfix-test ()
   (let* ((path test-path)
