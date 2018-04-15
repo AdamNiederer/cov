@@ -29,3 +29,6 @@ script:
   - cask exec ert-runner
 notifications:
   email: false
+after_success:
+  # Upload coverage
+  - bash <(curl -s https://codecov.io/bash)
