@@ -29,3 +29,7 @@ script:
   - cask exec ert-runner
 notifications:
   email: false
+after_success:
+  # Upload coverage, specify file explicitly to avoid the uploader uploading the
+  # test coverages in test/.
+  - bash <(curl -s https://codecov.io/bash) -f coverage-final.json
