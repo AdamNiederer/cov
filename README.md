@@ -4,8 +4,10 @@
 
 # cov
 `cov` shows code coverage data for your program in emacs. Currently,
-it supports gcov and lcov output, as well as the Coveralls format
-produced by [undercover.el](https://github.com/sviridov/undercover.el).
+it supports gcov, lcov, and clover output, as well as the Coveralls
+format produced by 
+[undercover.el](https://github.com/sviridov/undercover.el).
+
 ![Screenshot](example.png)
 
 ## Installation
