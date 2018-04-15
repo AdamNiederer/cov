@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<coverage generated="1523033009">
+  <project timestamp="1523033009">
+    <package name="cov-test">
+      <file name="test2">
+        <line num="3" type="stmt" count="100"/>
+        <line num="4" type="stmt" count="86"/>
+        <line num="5" type="stmt" count="85"/>
+        <line num="6" type="stmt" count="84"/>
+        <line num="7" type="stmt" count="46"/>
+        <line num="8" type="stmt" count="45"/>
+        <line num="9" type="stmt" count="44"/>
+        <line num="10" type="stmt" count="1"/>
+        <line num="11" type="stmt" count="0"/>
+      </file>
+    </package>
+  </project>
+</coverage>

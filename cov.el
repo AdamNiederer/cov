@@ -9,7 +9,7 @@
 ;; Keywords: coverage gcov c
 ;; Homepage: https://github.com/AdamNiederer/cov
 ;; Version: 0.1.0
-;; Package-Requires: ((emacs "24.4") (f "0.18.2") (s "1.11.0"))
+;; Package-Requires: ((emacs "24.4") (f "0.18.2") (s "1.11.0") (elquery))
 
 ;; This file is not part of GNU Emacs.
 
@@ -39,6 +39,7 @@
 (require 'seq)
 (require 'subr-x)
 (require 'filenotify)
+(require 'elquery)
 
 (defgroup cov nil
   "The group for everything in cov.el"
@@ -139,7 +140,7 @@ COVERAGE-TOOL has created the data.
 
 Currently the only supported COVERAGE-TOOL is gcov.")
 
-(defvar cov-coverage-file-paths '("." cov--locate-coveralls)
+(defvar cov-coverage-file-paths '("." cov--locate-coveralls cov--locate-clover)
   "List of paths or functions returning file paths containing coverage files.
 
 Relative paths:
@@ -222,6 +223,14 @@ Looks for a `coverage-final.json' file. Return nil it not found."
     (when dir
       (cons (file-truename (f-join dir "coverage-final.json")) 'coveralls))))
 
+(defun cov--locate-clover (file-dir _file-name)
+  "Locate clover coverage from FILE-DIR for FILE-NAME.
+
+Looks for a `clover.xml' file. Return nil it not found."
+  (let ((dir (locate-dominating-file file-dir "clover.xml")))
+    (when dir
+      (cons (file-truename (f-join dir "clover.xml")) 'clover))))
+
 (defun cov--coverage ()
   "Return coverage file and tool.
 
@@ -277,6 +286,27 @@ of (FILE . (LINE-NUM TIMES-RAN))."
             (push (list linenum count) file-coverage))
           (setq linenum (+ linenum 1)))
         (push (cons (gethash "name" source) file-coverage) matches)))
+    matches))
+
+(defun cov--clover-parse ()
+  "Parse clover coverage.
+
+Parse clover data in `(current-buffer)' and return a list
+of (FILE . (LINE-NUM TIMES-RAN))."
+  (let ((xml (elquery-read-string (buffer-string)))
+        (matches (list)))
+    (when xml
+      (dolist (file (elquery-$ "coverage project package file" xml))
+        (let* ((file-name (elquery-prop file "name"))
+               (common (f-common-parent (list file-name cov-coverage-file)))
+               (file-coverage (list)))
+          (dolist (line (elquery-$ "line" file))
+            (let ((line-num (string-to-number (elquery-prop line "num")))
+                  (line-count (string-to-number (elquery-prop line "count"))))
+              (unless (equal line-num 0)
+                (push (list line-num line-count) file-coverage))))
+          ;; Clover uses absolute filenames, so we remove the common prefix.
+          (push (cons (string-remove-prefix common file-name) file-coverage) matches))))
     matches))
 
 (defun cov--read-and-parse (file-path format)
