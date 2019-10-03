@@ -485,7 +485,8 @@ EVENT is of the form:
             (when (and (> (car line-data) displacement)
                        (<= (car line-data) max-line))
               (cov--set-overlay line-data max displacement))))
-      (message "No coverage data found for %s." (buffer-file-name)))))
+      (when (buffer-file-name)
+        (message "No coverage data found for %s." (buffer-file-name))))))
 
 (defun cov-clear-overlays ()
   "Remove all cov overlays."
