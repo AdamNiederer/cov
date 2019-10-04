@@ -297,7 +297,11 @@ of (FILE . (LINE-NUM TIMES-RAN))."
         (matches (list)))
     (when xml
       (dolist (file (elquery-$ "coverage project package file" xml))
-        (let* ((file-name (elquery-prop file "name"))
+        ;; Seems there's some disagreement between tools as to where
+        ;; to put the file path. PHPUnit puts it in `name', while Jest
+        ;; puts the basename in `name' and the full path and filename
+        ;; in `path'.
+        (let* ((file-name (or (elquery-prop file "path") (elquery-prop file "name")))
                (common (f-common-parent (list file-name cov-coverage-file)))
                (file-coverage (list)))
           (dolist (line (elquery-$ "line" file))
@@ -485,7 +489,8 @@ EVENT is of the form:
             (when (and (> (car line-data) displacement)
                        (<= (car line-data) max-line))
               (cov--set-overlay line-data max displacement))))
-      (message "No coverage data found for %s." (buffer-file-name)))))
+      (when (buffer-file-name)
+        (message "No coverage data found for %s." (buffer-file-name))))))
 
 (defun cov-clear-overlays ()
   "Remove all cov overlays."
