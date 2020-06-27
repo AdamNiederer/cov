@@ -60,7 +60,7 @@
 ;; cov--coveralls-parse
 (ert-deftest cov--coveralls-parse--basic-test ()
   (with-temp-buffer
-    (insert "{\"source_files\":[{\"coverage\":[0,null,3,1,2,0,null],\"source\":\"not covered\nignored\ncovered thee times\ncovered once\ncovered twice\nnot covered either\nignored too\n\",\"name\":\"test\"}]}")
+    (insert "{\"source_files\":[{\"coverage\":[0,null,3,1,2,0,null],\"source\":\"not covered\\nignored\\ncovered thee times\\ncovered once\\ncovered twice\\nnot covered either\\nignored too\\n\",\"name\":\"test\"}]}")
     (goto-char 1)
     (setq-local cov-coverage-file "test")
     (should (equal
