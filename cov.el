@@ -50,7 +50,7 @@
   :group 'cov)
 
 (defcustom cov-high-threshold .85
-  "The threshold at which a line will be painted with `cov-med-face'.
+  "The threshold at which a line will be painted with `cov-heavy-face'.
 
 This is a ratio of the run count of the most-run line;
 any line exceeding this fraction of the highest line run count
