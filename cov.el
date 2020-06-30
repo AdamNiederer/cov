@@ -152,7 +152,7 @@ Relative paths:
 Function:
 
 A function or lambda that should get the buffer file dir and name
-as arguments and return eiter nil or the truename path to the
+as arguments and return either nil or the truename path to the
 coverage file and the corresponding coverage tool in a cons cell
 of the form (COV-FILE-PATH . COVERAGE-TOOL).  The following
 example sets a lambda that searches the coverage file in the

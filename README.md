@@ -57,7 +57,7 @@ data. You can customize this default by setting the alist
 If the coverage file is not stored in the same directory as the source
 file, the list `gcov-coverage-file-paths` can be set to contain
 additional paths, relative to the source path, to search. For example,
-with this configarion the current directory and the subdirectory `cov`
+with this configuration the current directory and the subdirectory `cov`
 will be used:
 
 ```lisp
@@ -73,7 +73,7 @@ adding this to your init.el:
 ```
 
 For more complex environments it is also possible to provide a
-function instead ot a path string. The function will be called with
+function instead of a path string. The function will be called with
 the path and name of the buffer file and should return a cons cell of
 the form (COV-FILE-PATH . COVERAGE-TOOL). PATH shall be the full path
 and name of the coverage data file. COVERAGE-TOOL shall specify the
@@ -97,7 +97,7 @@ a new format:
    the coverage count.
 
 ### Test
-Install dependencides:
+Install dependencies:
 ```bash
 cask install
 ```
