@@ -269,7 +269,7 @@ text properties with list values."
         (should-not (cl-set-difference overlay-bfs expected :test cmp)))
       (ert-info ("Missing overlay before-strings")
         (should-not (cl-set-difference expected overlay-bfs :test cmp))))
-	(kill-buffer "test")))
+	(kill-buffer)))
 
 (ert-deftest cov-mode--overlay-help-test ()
   (with-current-buffer (find-file-noselect (format "%s/test" test-path))
