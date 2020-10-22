@@ -44,9 +44,13 @@
     (insert "        6:    1:\n       16:    2:\n       66:    3:")
     (goto-char 1)
     (setq-local cov-coverage-file "test")
-    (should (equal
-             (cov--gcov-parse)
-             '(("test" (3 66) (2 16) (1 6)))))))
+	(let ((expected '(("test" (3 66) (2 16) (1 6))))
+		  (result (cov--gcov-parse)))
+	  (should (equal (caar result) (caar expected)))
+	  (ert-info ("Unexpected matches")
+		(should-not (cl-set-difference (cdar result) (cdar expected) :test 'equal)))
+	  (ert-info ("Missing matches")
+		(should-not (cl-set-difference (cdar expected) (cdar result)  :test 'equal))))))
 
 (ert-deftest cov--gcov-parse--not-executed-test ()
   (with-temp-buffer
@@ -206,7 +210,7 @@
     (let ((overlay-starts (mapcar #'overlay-start (cov--overlays)))
           (expected '(15 36 57 78 99 120 141 162 183)))
       (should (equal (length overlay-starts) (length expected)))
-      (ert-info ("Unexpected overlay ends")
+      (ert-info ("Unexpected overlay starts")
         (should-not (cl-set-difference overlay-starts expected)))
       (ert-info ("Missing overlay starts")
         (should-not (cl-set-difference expected overlay-starts))))
