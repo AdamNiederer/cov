@@ -179,9 +179,6 @@ to your init.el.")
 (defvar cov-coverages (make-hash-table :test 'equal)
   "Storage of coverage data.")
 
-(defconst cov-line-re "^ *\\(\\([0-9#]+\\): *\\([0-9]+\\)\\):")
-(defconst cov-intermediate-line-re "^lcount:\\(\\([0-9]+\\),\\([0-9]+\\)\\)")
-
 (defun cov--locate-coverage-postfix (file-dir file-name path extension)
   "Return full path of coverage file, if found.
 
@@ -244,29 +241,32 @@ returned. Otherwise `cov--locate-coverage' is called."
       (when (buffer-file-name)
         (setq cov-coverage-file (cov--locate-coverage (buffer-file-name))))))
 
-(defun cov--gcov-parse ()
-  "Parse gcov coverage.
+(defun cov--gcov-parse (&optional buffer)
+  "Parse gcov coverage from gcov file in BUFFER.
 
-Parses `(current-buffer)' containing gcov file, filter unused
-lines, and return a list of (FILE . (LINE-NUM TIMES-RAN))."
-  (let ((more t)
-        ;; Derive the name of the covered file from the filename of
-        ;; the coverage file.
-        (filename (file-name-sans-extension (f-filename cov-coverage-file)))
-        matches)
-    (save-match-data
-      (while more
-        (cond ((looking-at cov-line-re)
-               (push (list (string-to-number (match-string-no-properties 3))
-                           (string-to-number (match-string-no-properties 2)))
-                     matches))
-              ((looking-at cov-intermediate-line-re)
-               (push (list (string-to-number (match-string-no-properties 2))
-                           (string-to-number (match-string-no-properties 3)))
-                     matches)))
-        (end-of-line)
-        (setq more (= 0 (forward-line 1)))))
-    (list (cons filename matches))))
+Read from `current-buffer' if BUFFER is nil. Return a list
+`((FILE . ((LINE-NUM TIMES-RAN) ...)))'. Unused lines (TIMES-RAN
+'-') are filtered out."
+  (with-current-buffer (or buffer (current-buffer))
+	;; The buffer is _not_ automatically widened. It is possible to
+	;; read just a portion of the buffer by narrowing it first.
+	(let ((line-re (rx line-start
+					   ;; note the group numbers are in reverse order
+					   ;; in the first alternative
+					   (or (seq (* blank) (group-n 2 (+ (in digit ?#))) ?:
+								(* blank) (group-n 1 (+ digit)) ?:)
+						   (seq "lcount:" (group-n 1 (+ digit)) ?, (group-n 2 (+ digit))))))
+		  ;; Derive the name of the covered file from the filename of
+		  ;; the coverage file.
+		  (filename (file-name-sans-extension (f-filename cov-coverage-file))))
+	  (save-excursion
+		(save-match-data
+		  (goto-char (point-min))
+		  (list (cons filename
+					  (cl-loop
+					   while (re-search-forward line-re nil t)
+					   collect (list (string-to-number (match-string 1))
+									 (string-to-number (match-string 2)))))))))))
 
 (defun cov--coveralls-parse ()
   "Parse coveralls coverage.
