@@ -536,3 +536,7 @@ EVENT is of the form:
 
 (provide 'cov)
 ;;; cov.el ends here
+
+;; Local Variables:
+;; sentence-end-double-space: nil
+;; End:
