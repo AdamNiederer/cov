@@ -434,6 +434,10 @@ DISPLACEMENT to account for lines hidden by narrowing."
 (cl-defstruct cov-data
   type mtime buffers watcher coverage)
 
+(defsubst cov-data--add-buffer (coverage buffer)
+  "Add BUFFER to COVERAGE if it not already there."
+  (cl-pushnew buffer (cov-data-buffers coverage)))
+
 (defun cov--stored-data (file type)
   "Get the `cov-data' object for FILE from `cov-coverages'.
 If no object exist, create one with TYPE."
@@ -450,8 +454,7 @@ it if necessary, or reloading if the file has changed."
       (let* ((file (car cov))
              (stored-data (cov--stored-data file (cdr cov))))
         ;; Register current buffer as user of this coverage.
-        (unless (member (current-buffer) (cov-data-buffers stored-data))
-          (push (current-buffer) (cov-data-buffers stored-data)))
+        (cov-data--add-buffer stored-data (current-buffer))
         ;; Start file watching...
         (when (and file-notify--library                    ; if available
                    (null (cov-data-watcher stored-data)))  ; not already watched
