@@ -164,6 +164,36 @@
              actual
              nil))))
 
+;; cov--stored-data
+(ert-deftest cov--stored-data-empty-test ()
+  "Test that a single new cov-data struct is added to `cov-coverages'."
+  (let ((cov-coverges (make-hash-table :test 'equal)))
+    (cov--stored-data "filename" 'gcov)
+    (should (equal (hash-table-keys cov-coverages) '("filename")))
+    (should (cov-data-p (car (hash-table-values cov-coverages))))
+    (should (eq 'gcov (cov-data-type (car (hash-table-values cov-coverages)))))))
+
+(ert-deftest cov--stored-data-has-data-test ()
+  "Test that any matching cov-data struct is returned."
+  (let ((cov-coverages (make-hash-table :test 'equal)))
+    (puthash "filename" 'foo cov-coverages)
+    (should (eq 'foo (cov--stored-data "filename" 'gcov)))))
+
+(ert-deftest cov--stored-data-same-data-test ()
+  "Test that the created data is returned later."
+  (let ((cov-coverges (make-hash-table :test 'equal))
+        data1 data2)
+    (cov--stored-data "filename" 'gcov)
+    (should (equal (hash-table-keys cov-coverages) '("filename")))
+    (setq data1 (car (hash-table-values cov-coverages)))
+    (should (cov-data-p data1))
+    (should (eq 'gcov (cov-data-type data1)))
+    (cov--stored-data "filename" 'gcov)
+    (should (equal (hash-table-keys cov-coverages) '("filename")))
+    (setq data2 (car (hash-table-values cov-coverages)))
+    (should (eq data1 data2))
+    (should (equal data1 data2))))
+
 ;; cov--get-buffer-coverage
 (ert-deftest cov--get-buffer-coverage-no-coverage-test ()
   "No coverage data file found."
