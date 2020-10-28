@@ -434,6 +434,12 @@ DISPLACEMENT to account for lines hidden by narrowing."
 (cl-defstruct cov-data
   type mtime buffers watcher coverage)
 
+(defun cov--stored-data (file type)
+  "Get the `cov-data' object for FILE from `cov-coverages'.
+If no object exist, create one with TYPE."
+  (or (gethash file cov-coverages)
+      (puthash file (make-cov-data :type type) cov-coverages)))
+
 (defun cov--get-buffer-coverage ()
   "Return coverage for current buffer.
 
@@ -442,26 +448,22 @@ it if necessary, or reloading if the file has changed."
   (let ((cov (cov--coverage)))
     (when cov
       (let* ((file (car cov))
-             (stored-data (gethash file cov-coverages)))
-        (unless stored-data
-          (setq stored-data (make-cov-data :type (cdr cov)))
-          (puthash file stored-data cov-coverages))
+             (stored-data (cov--stored-data file (cdr cov))))
         ;; Register current buffer as user of this coverage.
-        (if (cov-data-buffers stored-data)
-            (unless (member (current-buffer) (cov-data-buffers stored-data))
-              (push (current-buffer) (cov-data-buffers stored-data)))
-          (setf (cov-data-buffers stored-data) (list (current-buffer)))
-          ;; Start file watching, if available.
-          (when file-notify--library
-            ;; We're watching the directory of the file rather than
-            ;; the file itself in order to catch deletion and
-            ;; re-creation of the file.
-            (setf (cov-data-watcher stored-data)
-                  (file-notify-add-watch
-                   (f-dirname file)
-                   '(change)
-                   (lambda (event)
-                     (cov-watch-callback file event))))))
+        (unless (member (current-buffer) (cov-data-buffers stored-data))
+          (push (current-buffer) (cov-data-buffers stored-data)))
+        ;; Start file watching...
+        (when (and file-notify--library                    ; if available
+                   (null (cov-data-watcher stored-data)))  ; not already watched
+          ;; We're watching the directory of the file rather than
+          ;; the file itself in order to catch deletion and
+          ;; re-creation of the file.
+          (setf (cov-data-watcher stored-data)
+                (file-notify-add-watch
+                 (f-dirname file)
+                 '(change)
+                 (lambda (event)
+                   (cov-watch-callback file event)))))
         ;; Load coverage if needed.
         (cov--load-coverage stored-data file t)
 
