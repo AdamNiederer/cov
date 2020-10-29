@@ -583,5 +583,6 @@ EVENT is of the form:
 ;;; cov.el ends here
 
 ;; Local Variables:
+;; indent-tabs-mode: nil
 ;; sentence-end-double-space: nil
 ;; End:

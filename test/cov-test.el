@@ -296,3 +296,7 @@ text properties with list values."
         ;;(print (overlay-get overlay 'help-echo))
         (should (equal (overlay-get overlay 'help-echo) (pop expected)))))
 	(kill-buffer)))
+
+;; Local Variables:
+;; indent-tabs-mode: nil
+;; End:
