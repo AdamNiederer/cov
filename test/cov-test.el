@@ -267,21 +267,20 @@
                                           ;; by Emacs.
                                           :occur (if file-notify--library 1 0)))))
       (with-current-buffer (find-file-noselect testfile)
-        (let (kill-buffer-hook)
-          (should (cov--get-buffer-coverage))
-          ;; Check that one data entry has been stored in cov-coverages
-          (should (equal (hash-table-count cov-coverages) 1))
-          (let ((key (car (hash-table-keys cov-coverages)))
-                (val (car (hash-table-values cov-coverages))))
-            (should (string= (file-name-nondirectory key) "test.gcov"))
-            (should (cov-data-p val))
-            (should (eq (cov-data-type val) 'gcov))
-            (should (eq (cov-data-watcher val)
-                        ;; Has not been set if file-notify is not supported.
-                        (if file-notify--library 'watch-descriptor nil)))
-            (should (memq (current-buffer) (cov-data-buffers val)))
-            (should (memq 'cov-kill-buffer-hook kill-buffer-hook))
-            (should (equal (length kill-buffer-hook) 1))))
+        (should (cov--get-buffer-coverage))
+        ;; Check that one data entry has been stored in cov-coverages
+        (should (equal (hash-table-count cov-coverages) 1))
+        (let ((key (car (hash-table-keys cov-coverages)))
+              (val (car (hash-table-values cov-coverages))))
+          (should (string= (file-name-nondirectory key) "test.gcov"))
+          (should (cov-data-p val))
+          (should (eq (cov-data-type val) 'gcov))
+          (should (eq (cov-data-watcher val)
+                      ;; Has not been set if file-notify is not supported.
+                      (if file-notify--library 'watch-descriptor nil)))
+          (should (memq (current-buffer) (cov-data-buffers val)))
+          (should (memq 'cov-kill-buffer-hook kill-buffer-hook))
+          (should (equal '(cov-kill-buffer-hook t) kill-buffer-hook)))
         (kill-buffer)))))
 
 (ert-deftest cov--get-buffer-coverage-have-data-test ()
@@ -335,9 +334,9 @@
                                          :occur (if file-notify--library 1 0)))))
       (with-current-buffer (find-file-noselect testfile)
         (let ((cov-coverages (make-hash-table :test 'equal))
-              kill-buffer-hook
               covdata)
           (cov-mode)
+          (should (local-variable-p 'kill-buffer-hook))
           (should (memq 'cov-kill-buffer-hook kill-buffer-hook))
           (should (member covfile (hash-table-keys cov-coverages)))
           (setq covdata (gethash covfile cov-coverages))
@@ -368,9 +367,10 @@
                  (file-notify-rm-watch (descriptor)))
       (with-current-buffer (find-file-noselect testfile)
         (let ((cov-coverages (make-hash-table :test 'equal))
-              kill-buffer-hook
               covdata)
           (cov-mode)
+          ;; do not call cov-kill-buffer-hook from the hook
+          (remove-hook 'kill-buffer-hook 'cov-kill-buffer-hook t)
           (setq covdata (gethash covfile cov-coverages))
           ;; add another buffer to the cov-data buffer list
           (cl-pushnew (get-buffer-create (symbol-name (cl-gensym)))
@@ -421,21 +421,26 @@
                                          :output nil
                                          :occur (if file-notify--library 1 0)))))
       (with-current-buffer (find-file-noselect testfile1)
-        (let (kill-buffer-hook
-              covdata1)
+        (let (covdata1)
           (cov-mode)
+          ;; do not call cov-kill-buffer-hook from the hook
+          (remove-hook 'kill-buffer-hook 'cov-kill-buffer-hook t)
           (setq covdata1 (gethash covfile cov-coverages))
           ;; add another buffer to the cov-data buffer list
           (cl-pushnew (get-buffer-create (symbol-name (cl-gensym)))
                       (cov-data-buffers covdata1))
           (with-current-buffer (find-file-noselect testfile2)
             (cov-mode)
+            ;; do not call cov-kill-buffer-hook from the hook
+            (remove-hook 'kill-buffer-hook 'cov-kill-buffer-hook t)
             (should (= 2 (length (hash-table-keys cov-coverages))))
             (cov-kill-buffer-hook)
             (should (= 1 (length (hash-table-keys cov-coverages))))
             (should (eq (car (hash-table-values cov-coverages)) covdata1))
             (should (= 2 (length (cov-data-buffers covdata1))))
-            (should-not (memq (current-buffer) (cov-data-buffers covdata1)))))))))
+            (should-not (memq (current-buffer) (cov-data-buffers covdata1)))
+            (kill-buffer)))
+        (kill-buffer)))))
 
 ;; cov--get-face
 (ert-deftest cov--get-face-test ()

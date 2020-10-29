@@ -481,7 +481,7 @@ it if necessary, or reloading if the file has changed."
         ;; Load coverage if needed.
         (cov--load-coverage stored-data file t)
 
-        (add-hook 'kill-buffer-hook 'cov-kill-buffer-hook)
+        (add-hook 'kill-buffer-hook 'cov-kill-buffer-hook nil t)
         ;; Find file coverage.
         (let ((common (f-common-parent (list file (buffer-file-name)))))
           (cdr (assoc (string-remove-prefix common (buffer-file-name))
