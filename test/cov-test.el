@@ -164,6 +164,52 @@
              actual
              nil))))
 
+;; cov-data--remove-buffer
+(ert-deftest cov-data--remove-buffer-test ()
+  "Test `cov-data-remove-buffer'."
+  (let ((covdata (make-cov-data)))
+    ;; starts with an empty list
+    (should-not (cov-data-buffers covdata))
+    (with-temp-buffer
+      (ert-info ((progn "Removing a buffer from empty list is ok"))
+        (should-not (cov-data--remove-buffer covdata (current-buffer)))
+        (should-not (cov-data-buffers covdata)))
+      (ert-info ((progn "Adding and removing a single buffer"))
+        (cl-pushnew (current-buffer) (cov-data-buffers covdata))
+        (should (equal (list (current-buffer)) (cov-data-buffers covdata)))
+        (should-not (cov-data--remove-buffer covdata (current-buffer)))
+        (should-not (cov-data-buffers covdata)))
+      (ert-info ((progn "Trying to remove a non-listed buffer is a no-op"))
+        (cl-pushnew (current-buffer) (cov-data-buffers covdata))
+        (with-temp-buffer
+          (let (remaining)
+            (should (setq remaining (cov-data--remove-buffer covdata (current-buffer))))
+            (should (equal remaining (cov-data-buffers covdata))))))
+      (ert-info ((progn "Remove a buffer in the middle of the list"))
+        (let ((other-buffer (get-buffer-create (symbol-name (cl-gensym)))))
+          (cl-pushnew other-buffer (cov-data-buffers covdata))
+          (with-temp-buffer
+            (cl-pushnew (current-buffer) (cov-data-buffers covdata))
+            (should (equal 2 (length (cov-data--remove-buffer covdata other-buffer))))
+            (should-not (memq other-buffer (cov-data-buffers covdata)))
+            (should (memq (current-buffer) (cov-data-buffers covdata))))
+          (should (memq (current-buffer) (cov-data-buffers covdata))))))))
+
+;; cov-data--unregister-watcher
+(ert-deftest cov-data--unregister-watcher ()
+  "Test `cov-data--unregister-watcher'."
+  (let ((covdata (make-cov-data)))
+    (ert-info ((progn "Unregister nonexistent watch"))
+      (mocker-let ((file-notify-rm-watch (descriptor)))
+        (cov-data--unregister-watcher covdata)
+        (should-not (cov-data-watcher covdata))))
+    (ert-info ((progn "Unregister a watch"))
+      (setf (cov-data-watcher covdata) 'watch-desc)
+      (mocker-let ((file-notify-rm-watch (descriptor)
+                                         ((:input '(watch-desc)))))
+        (cov-data--unregister-watcher covdata)
+        (should-not (cov-data-watcher covdata))))))
+
 ;; cov--stored-data
 (ert-deftest cov--stored-data-empty-test ()
   "Test that a single new cov-data struct is added to `cov-coverages'."
@@ -297,12 +343,8 @@
           (setq covdata (gethash covfile cov-coverages))
           (should (memq (current-buffer) (cov-data-buffers covdata)))
           (cov-kill-buffer-hook)
-          ;; Struct member is not cleared ...
-          ;; ... but on the other hand the struct will be forgotten.
-          ;; (should-not (cov-data-watcher covdata))
-          ;; The last buffer is actually never removed from the list ...
-          ;; (should-not (memq (current-buffer) (cov-data-buffers covdata)))
-          ;; ... but on the other hand, the entire struct is removed.
+          (should-not (cov-data-watcher covdata))
+          (should-not (memq (current-buffer) (cov-data-buffers covdata)))
           (should (hash-table-empty-p cov-coverages)))
         (kill-buffer)))))
 
