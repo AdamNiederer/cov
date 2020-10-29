@@ -438,6 +438,17 @@ DISPLACEMENT to account for lines hidden by narrowing."
   "Add BUFFER to COVERAGE if it not already there."
   (cl-pushnew buffer (cov-data-buffers coverage)))
 
+(defsubst cov-data--remove-buffer (coverage buffer)
+  "Remove BUFFER from COVERAGE.
+Return the list of remaining buffers."
+  (setf (cov-data-buffers coverage) (cl-delete buffer (cov-data-buffers coverage))))
+
+(defsubst cov-data--unregister-watcher (coverage)
+  "Unregister and remove any file watcher from COVERAGE."
+  (when (cov-data-watcher coverage)
+    (file-notify-rm-watch (cov-data-watcher coverage))
+    (setf (cov-data-watcher coverage) nil)))
+
 (defun cov--stored-data (file type)
   "Get the `cov-data' object for FILE from `cov-coverages'.
 If no object exist, create one with TYPE."
@@ -502,16 +513,11 @@ Won't update `(current-buffer)' if IGNORE-CURRENT is non-nil."
   ;; Only clean up when buffer have a file name. Buffers without a file
   ;; cannot have coverage.
   (when (buffer-file-name)
-    (let ((keys (hash-table-keys cov-coverages)))
-      (dolist (file keys)
-        (let* ((coverage (gethash file cov-coverages))
-               (buffers (remove (current-buffer)
-                                (cov-data-buffers coverage))))
-          (if buffers (setf (cov-data-buffers coverage) buffers)
-            (progn
-              (when (cov-data-watcher coverage)
-                (file-notify-rm-watch (cov-data-watcher coverage)))
-              (remhash file cov-coverages))))))))
+    (dolist (file (hash-table-keys cov-coverages))
+      (let* ((coverage (gethash file cov-coverages)))
+        (unless (cov-data--remove-buffer coverage (current-buffer))
+          (cov-data--unregister-watcher coverage)
+          (remhash file cov-coverages))))))
 
 (defun cov-watch-callback (file event)
   "Trigger reload of coverage data on FILE change.
