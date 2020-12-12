@@ -140,7 +140,8 @@ COVERAGE-TOOL has created the data.
 
 Currently the only supported COVERAGE-TOOL is gcov.")
 
-(defvar cov-coverage-file-paths '("." cov--locate-coveralls cov--locate-clover)
+(defvar cov-coverage-file-paths
+  '("." cov--locate-coveralls cov--locate-clover cov--locate-coveragepy)
   "List of paths or functions returning file paths containing coverage files.
 
 Relative paths:
@@ -228,6 +229,12 @@ Looks for a `clover.xml' file. Return nil it not found."
     (when dir
       (cons (file-truename (f-join dir "clover.xml")) 'clover))))
 
+(defun cov--locate-coveragepy (file-dir _file-name)
+  "Locate file \"coverage.json\" starting at FILE-DIR."
+  (let ((dir (locate-dominating-file file-dir "coverage.json")))
+    (when dir
+      (cons (file-truename (f-join dir "coverage.json")) 'coveragepy))))
+
 (defun cov--coverage ()
   "Return coverage file and tool.
 
@@ -311,6 +318,44 @@ of (FILE . (LINE-NUM TIMES-RAN))."
                 (push (list line-num line-count) file-coverage))))
           ;; Clover uses absolute filenames, so we remove the common prefix.
           (push (cons (string-remove-prefix common file-name) file-coverage) matches))))
+    matches))
+
+(defun cov--coveragepy-parse ()
+  "Parse JSON coverage file from project coveragepy.
+
+This function parses a JSON file created by coveragepy. Note that
+by default coveragepy creates a binary coverage file named \".coverage\"
+by running
+
+   coverage3 run myfile.py
+
+from the command line. This file must be converted to JSON afterwards
+by running
+
+   coverage3 json
+
+which will create a JSON file \"coverage.json\". This function only parses
+the JSON file, it does not create the file.
+
+Coveragepy just reports whether or not a certain line of code was executed.
+But it does not report how many times a certain line was executed.
+
+Project coveragepy is released at <https://github.com/nedbat/coveragepy/>.
+"
+  (let*
+      ((json-object-type 'hash-table)
+       (json-array-type 'list)
+       (coverage (json-read))
+       (matches (list)))
+    (maphash (lambda (filename file-value)
+               (push (cons filename
+                           (append
+                            (mapcar (lambda (line) (list line 1))
+                                    (gethash "executed_lines" file-value))
+                            (mapcar (lambda (line) (list line 0))
+                                    (gethash "missing_lines" file-value))))
+                     matches))
+             (gethash "files" coverage))
     matches))
 
 (defun cov--read-and-parse (file-path format)
