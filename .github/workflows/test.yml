@@ -32,5 +32,5 @@ jobs:
         wget 'https://raw.githubusercontent.com/flycheck/emacs-travis/master/emacs-travis.mk'
         make -f emacs-travis.mk install_cask
         cask install
-        cask exec ert-runner
+        GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} cask exec ert-runner
 
