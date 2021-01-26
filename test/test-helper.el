@@ -6,4 +6,6 @@
 (when (require 'undercover nil t)
   ;; Track coverage, but don't send to coveralls (Travis will send it
   ;; to Codecov).
-  (undercover "*.el" (:report-type :codecov)))
+  (undercover "*.el"
+              (:report-format 'codecov)
+              (:send-report nil)))
