@@ -397,27 +397,17 @@ execution frequency"
   "Return help text for the given N count and PERCENTAGE."
   (format "cov: executed %d times (~%.2f%% of highest)" n (* percentage 100)))
 
-(defun cov--set-overlay (line max displacement)
+(defun cov--set-overlay (line max)
   "Set the overlay for LINE.
 
-MAX is the maximum coverage count for any line in the file. Use
-DISPLACEMENT to account for lines hidden by narrowing."
+MAX is the maximum coverage count for any line in the file."
   (let* ((times-executed (nth 1 line))
          (percentage (/ times-executed (float max))))
     (cov--make-overlay
-     (- (cl-first line) displacement)
+     (car line)
      (cov--get-fringe percentage)
      (cov--help times-executed percentage))))
 
-(defun cov--calc-line-displacement ()
-  "Get line number displacement if buffer is narrowed."
-  (let ((start (point-min)))
-    (if (= start 1)
-        0
-      (save-excursion
-        (save-restriction
-          (widen)
-          (1- (line-number-at-pos start)))))))
 
 (defmacro cov--file-mtime (file)
   "Return the last modification time of FILE."
@@ -527,17 +517,28 @@ EVENT is of the form:
           (cov--load-coverage coverage file))))))
 
 (defun cov-set-overlays ()
-  "Add cov overlays."
+  "Add cov overlays.
+Only add overlays to lines with at least one visible character in
+a narrowed buffer. Overlays will always cover the full line
+even if part of the line is outside any narrrowing."
   (interactive)
-  (let ((lines (cov--get-buffer-coverage)))
+  (let* ((lines (cov--get-buffer-coverage))
+         ;; The limits of any narrowing of the buffer, excluding
+         ;; leading and ending single newline
+         (begin (save-excursion (goto-char (point-min)) (if (eolp) (1+ (point)) (point))))
+         (end (save-excursion (goto-char (point-max)) (if (bolp) (1- (point)) (point))))
+         ;; The highest execution count of any line
+         (max (cl-reduce 'max lines :initial-value 0 :key #'cl-second)))
     (if lines
-        (let* ((max (cl-reduce 'max (cons 0 (mapcar 'cl-second lines))))
-               (displacement (cov--calc-line-displacement))
-               (max-line (+ (line-number-at-pos (point-max)) displacement)))
-          (dolist (line-data lines)
-            (when (and (> (car line-data) displacement)
-                       (<= (car line-data) max-line))
-              (cov--set-overlay line-data max displacement))))
+        (save-restriction
+          (widen)
+          (setq begin (line-number-at-pos begin)
+                end (line-number-at-pos end))
+          (cl-loop for line-data in lines
+                   for line-number = (car line-data)
+                   if (and (<= begin line-number)
+                           (<= line-number end))
+                   do (cov--set-overlay line-data max)))
       (when (buffer-file-name)
         (message "No coverage data found for %s." (buffer-file-name))))))
 
