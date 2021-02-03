@@ -165,14 +165,7 @@ current directory:
                                 file-dir file-name
                                 cov-coverage-file-extension)))
                (and (file-exists-p try)
-                    (cons (file-truename try) 'gcov))))))
-
-Make the variable buffer-local, so it can be set per project,
-e.g. in a .dir-locals.el file, by adding
-
-  (make-variable-buffer-local 'cov-coverage-file-paths)
-
-to your init.el.")
+                    (cons (file-truename try) 'gcov))))))")
 
 (defvar-local cov-coverage-file nil
   "Last located coverage file and tool.")
