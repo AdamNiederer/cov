@@ -415,7 +415,14 @@ MAX is the maximum coverage count for any line in the file."
 
 ;; Structure for coverage data.
 (cl-defstruct cov-data
-  type mtime buffers watcher coverage)
+  "Holds data about a coverage data file, which can hold coverage
+data for several source code files."
+  (type nil :type symbol :documentation "The coverage type, such as `gcov'.")
+  (mtime nil :type time :documentation "The mtime for the coverage file last time it was read.")
+  (buffers nil :type list :documentation "List of `cov-mode' buffers referring to this coverage data.")
+  (watcher nil :type watcher :documentation "The file notification watcher.")
+  (coverage nil :type alist :documentation "An alist of (FILE . ((LINE-NUM TIMES-RAN) ...)).")
+  )
 
 (defsubst cov-data--add-buffer (coverage buffer)
   "Add BUFFER to COVERAGE if it not already there."
