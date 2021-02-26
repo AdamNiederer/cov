@@ -1,6 +1,7 @@
 (load-file "cov.el")
 
 (require 'cov)
+(require 'mocker)
 
 ;; cov--gcov-parse
 (ert-deftest cov--gcov-parse--hyphen-test ()
@@ -162,6 +163,75 @@
     (should (equal
              actual
              nil))))
+
+;; cov--get-buffer-coverage
+(ert-deftest cov--get-buffer-coverage-no-coverage-test ()
+  "No coverage data file found."
+  :tags '(cov--get-buffer-coverage)
+  (mocker-let ((cov--coverage ()
+                              ((:input '() :output nil)))
+               (cov--load-coverage (datastore file &optional ignore-current)))
+    (should-not (cov--get-buffer-coverage))))
+
+(ert-deftest cov--get-buffer-coverage-no-stored-data-test ()
+  "No stored coverage data found."
+  :tags '(cov--get-buffer-coverage)
+  (let ((cov-coverages (make-hash-table :test 'equal))
+        (testfile (format "%s/test" test-path)))
+    (mocker-let ((file-notify-add-watch (file flags callback)
+                                        ((:input-matcher
+                                          (lambda (file flags callback)
+                                            (and
+                                             (string= test-path file)
+                                             (equal flags '(change))
+                                             (functionp callback)))
+                                          ;; dummy watch descriptor
+                                          :output 'watch-descriptor
+                                          ;; Will not be called if file-notify is not supported
+                                          ;; by Emacs.
+                                          :occur (if file-notify--library 1 0)))))
+      (with-current-buffer (find-file-noselect testfile)
+        (let (kill-buffer-hook)
+          (should (cov--get-buffer-coverage))
+          ;; Check that one data entry has been stored in cov-coverages
+          (should (equal (hash-table-count cov-coverages) 1))
+          (let ((key (car (hash-table-keys cov-coverages)))
+                (val (car (hash-table-values cov-coverages))))
+            (should (string= (file-name-nondirectory key) "test.gcov"))
+            (should (cov-data-p val))
+            (should (eq (cov-data-type val) 'gcov))
+            (should (eq (cov-data-watcher val)
+                        ;; Has not been set if file-notify is not supported.
+                        (if file-notify--library 'watch-descriptor nil)))
+            (should (memq (current-buffer) (cov-data-buffers val)))
+            (should (memq 'cov-kill-buffer-hook kill-buffer-hook))
+            (should (equal (length kill-buffer-hook) 1))))
+        (kill-buffer)))))
+
+(ert-deftest cov--get-buffer-coverage-have-data-test ()
+  "No stored coverage data found, coverage file not updated."
+  :tags '(cov--get-buffer-coverage)
+  (let ((cov-coverages (make-hash-table :test 'equal))
+        kill-buffer-hook
+        stored-data)
+    (mocker-let ((file-notify-add-watch (file flags callback)
+                                        ((:input-matcher
+                                          (lambda (file flags callback)
+                                            (and
+                                             (string= test-path file)
+                                             (equal flags '(change))
+                                             (functionp callback)))
+                                          ;; dummy watch descriptor
+                                          :output 'watch-descriptor
+                                          ;; Will not be called if file-notify is not supported
+                                          ;; by Emacs.
+                                          :occur (if file-notify--library 1 0)
+                                          ))))
+      (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+        ;; load data for the first time
+        (should (setq stored-data (cov--get-buffer-coverage)))
+        (should (eq stored-data (cov--get-buffer-coverage)))
+        (kill-buffer)))))
 
 ;; cov--get-face
 (ert-deftest cov--get-face-test ()
