@@ -263,6 +263,138 @@
         (should (eq stored-data (cov--get-buffer-coverage)))
         (kill-buffer)))))
 
+;; cov-kill-buffer-hook
+(ert-deftest cov-kill-buffer-hook-test-1-buffer ()
+  "Test kill hook when a single cov file and buffer is in `cov-coverages'."
+  :tags '(cov-kill-buffer-hook)
+  (let* ((testfile (format "%s/test" test-path))
+         (covfile (concat testfile ".gcov")))
+    (mocker-let ((file-notify-add-watch (file flags callback)
+                                        ((:input-matcher
+                                          (lambda (file flags callback)
+                                            (and
+                                             (string= test-path file)
+                                             (equal flags '(change))
+                                             (functionp callback)))
+                                          ;; dummy watch descriptor
+                                          :output 'watch-descriptor
+                                          ;; Will not be called if file-notify is not supported
+                                          ;; by Emacs.
+                                          :occur (if file-notify--library 1 0))))
+                 (file-notify-rm-watch (descriptor)
+                                       ((:input
+                                         '(watch-descriptor)
+                                         :output nil
+                                         ;; Not called if file-notify is not supported
+                                         :occur (if file-notify--library 1 0)))))
+      (with-current-buffer (find-file-noselect testfile)
+        (let ((cov-coverages (make-hash-table :test 'equal))
+              kill-buffer-hook
+              covdata)
+          (cov-mode)
+          (should (memq 'cov-kill-buffer-hook kill-buffer-hook))
+          (should (member covfile (hash-table-keys cov-coverages)))
+          (setq covdata (gethash covfile cov-coverages))
+          (should (memq (current-buffer) (cov-data-buffers covdata)))
+          (cov-kill-buffer-hook)
+          ;; Struct member is not cleared ...
+          ;; ... but on the other hand the struct will be forgotten.
+          ;; (should-not (cov-data-watcher covdata))
+          ;; The last buffer is actually never removed from the list ...
+          ;; (should-not (memq (current-buffer) (cov-data-buffers covdata)))
+          ;; ... but on the other hand, the entire struct is removed.
+          (should (hash-table-empty-p cov-coverages)))
+        (kill-buffer)))))
+
+(ert-deftest cov-kill-buffer-hook-test-2-buffers ()
+  "Test that only the buffer being killed is cleared out."
+  :tags '(cov-kill-buffer-hook)
+  (let* ((testfile (format "%s/test" test-path))
+         (covfile (concat testfile ".gcov")))
+    (mocker-let ((file-notify-add-watch (file flags callback)
+                                        ((:input-matcher
+                                          (lambda (file flags callback)
+                                            (and
+                                             (string= test-path file)
+                                             (equal flags '(change))
+                                             (functionp callback)))
+                                          ;; dummy watch descriptor
+                                          :output 'watch-descriptor
+                                          ;; Will not be called if file-notify is not supported
+                                          ;; by Emacs.
+                                          :occur (if file-notify--library 1 0))))
+                 (file-notify-rm-watch (descriptor)))
+      (with-current-buffer (find-file-noselect testfile)
+        (let ((cov-coverages (make-hash-table :test 'equal))
+              kill-buffer-hook
+              covdata)
+          (cov-mode)
+          (setq covdata (gethash covfile cov-coverages))
+          ;; add another buffer to the cov-data buffer list
+          (cl-pushnew (get-buffer-create (symbol-name (cl-gensym)))
+                      (cov-data-buffers covdata))
+          (cov-kill-buffer-hook)
+          (should-not (hash-table-empty-p cov-coverages))
+          (should (= 1 (length (hash-table-keys cov-coverages))))
+          (should (eq (car (hash-table-values cov-coverages)) covdata))
+          (should (= 1 (length (cov-data-buffers covdata))))
+          (should-not (memq (current-buffer) (cov-data-buffers covdata)))
+          (should (eq (cov-data-watcher covdata) 'watch-descriptor)))
+        (kill-buffer)))))
+
+(ert-deftest cov-kill-buffer-hook-test-multiple-files ()
+  "Test that `cov-kill-buffer-hook' can handle multiple files and buffers."
+  :tags '(cov-kill-buffer-hook)
+  (let* ((testfile1 (format "%s/test" test-path))
+         (testfile2 (format "%s/clover/test2" test-path))
+         (covfile (concat testfile1 ".gcov"))
+         (cloverfile (format "%s/clover/clover.xml" test-path))
+         (cov-coverages (make-hash-table :test 'equal)))
+    (mocker-let ((file-notify-add-watch (file flags callback)
+                                        ((:input-matcher
+                                          (lambda (file flags callback)
+                                            (and
+                                             (string= test-path file)
+                                             (equal flags '(change))
+                                             (functionp callback)))
+                                          ;; dummy watch descriptor
+                                          :output 'watch-descriptor-gcov
+                                          ;; Will not be called if file-notify is not supported
+                                          ;; by Emacs.
+                                          :occur (if file-notify--library 1 0))
+                                         (:input-matcher
+                                          (lambda (file flags callback)
+                                            (and
+                                             (string= (format "%s/clover" test-path) file)
+                                             (equal flags '(change))
+                                             (functionp callback)))
+                                          ;; dummy watch descriptor
+                                          :output 'watch-descriptor-clover
+                                          ;; Will not be called if file-notify is not supported
+                                          ;; by Emacs.
+                                          :occur (if file-notify--library 1 0))))
+                 (file-notify-rm-watch (descriptor)
+                                       ((:input
+                                         '(watch-descriptor-clover)
+                                         :output nil
+                                         :occur (if file-notify--library 1 0)))))
+      (with-current-buffer (find-file-noselect testfile1)
+        (let (kill-buffer-hook
+              covdata1)
+          (cov-mode)
+          (setq covdata1 (gethash covfile cov-coverages))
+          ;; add another buffer to the cov-data buffer list
+          (cl-pushnew (get-buffer-create (symbol-name (cl-gensym)))
+                      (cov-data-buffers covdata1))
+          (with-current-buffer (find-file-noselect testfile2)
+            (cov-mode)
+            (should (= 2 (length (hash-table-keys cov-coverages))))
+            (cov-kill-buffer-hook)
+            (should (= 1 (length (hash-table-keys cov-coverages))))
+            (should (eq (car (hash-table-values cov-coverages)) covdata1))
+            (should (= 2 (length (cov-data-buffers covdata1))))
+            (should-not (memq (current-buffer) (cov-data-buffers covdata1)))))))))
+
 ;; cov--get-face
 (ert-deftest cov--get-face-test ()
   (let ((cov-coverage-mode nil)
