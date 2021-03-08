@@ -3,6 +3,20 @@
 (require 'cov)
 (require 'mocker)
 
+(defmacro cov--with-test-buffer (testfile &rest body)
+  "Open TESTFILE in a buffer, execute BODY in it, and kill the buffer.
+TESTFILE can be an absolute path, a path relative to `test-path',
+or a symbol to be resolved at runtime."
+  (declare (indent 1) (debug t))
+  (let ((testfilepath
+         (cond ((and (stringp testfile) (file-name-absolute-p testfile)) testfile)
+               ((and (stringp testfile) `(format "%s/%s" test-path ,testfile)))
+               ((symbolp testfile) testfile)
+               (t (error "Unexpected argument type for `testfile'")))))
+    `(with-current-buffer (find-file-noselect ,testfilepath)
+       ,@body
+       (kill-buffer))))
+
 ;; cov--gcov-parse
 (ert-deftest cov--gcov-parse--hyphen-test ()
   (with-temp-buffer
@@ -252,8 +266,7 @@
 (ert-deftest cov--get-buffer-coverage-no-stored-data-test ()
   "No stored coverage data found."
   :tags '(cov--get-buffer-coverage)
-  (let ((cov-coverages (make-hash-table :test 'equal))
-        (testfile (format "%s/test" test-path)))
+  (let ((cov-coverages (make-hash-table :test 'equal)))
     (mocker-let ((file-notify-add-watch (file flags callback)
                                         ((:input-matcher
                                           (lambda (file flags callback)
@@ -266,7 +279,7 @@
                                           ;; Will not be called if file-notify is not supported
                                           ;; by Emacs.
                                           :occur (if file-notify--library 1 0)))))
-      (with-current-buffer (find-file-noselect testfile)
+      (cov--with-test-buffer "test"
         (should (cov--get-buffer-coverage))
         ;; Check that one data entry has been stored in cov-coverages
         (should (equal (hash-table-count cov-coverages) 1))
@@ -280,8 +293,7 @@
                       (if file-notify--library 'watch-descriptor nil)))
           (should (memq (current-buffer) (cov-data-buffers val)))
           (should (memq 'cov-kill-buffer-hook kill-buffer-hook))
-          (should (equal '(cov-kill-buffer-hook t) kill-buffer-hook)))
-        (kill-buffer)))))
+          (should (equal '(cov-kill-buffer-hook t) kill-buffer-hook)))))))
 
 (ert-deftest cov--get-buffer-coverage-have-data-test ()
   "No stored coverage data found, coverage file not updated."
@@ -302,11 +314,10 @@
                                           ;; by Emacs.
                                           :occur (if file-notify--library 1 0)
                                           ))))
-      (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+      (cov--with-test-buffer "test"
         ;; load data for the first time
         (should (setq stored-data (cov--get-buffer-coverage)))
-        (should (eq stored-data (cov--get-buffer-coverage)))
-        (kill-buffer)))))
+        (should (eq stored-data (cov--get-buffer-coverage)))))))
 
 ;; cov-kill-buffer-hook
 (ert-deftest cov-kill-buffer-hook-test-1-buffer ()
@@ -332,7 +343,7 @@
                                          :output nil
                                          ;; Not called if file-notify is not supported
                                          :occur (if file-notify--library 1 0)))))
-      (with-current-buffer (find-file-noselect testfile)
+      (cov--with-test-buffer testfile
         (let ((cov-coverages (make-hash-table :test 'equal))
               covdata)
           (cov-mode)
@@ -344,8 +355,7 @@
           (cov-kill-buffer-hook)
           (should-not (cov-data-watcher covdata))
           (should-not (memq (current-buffer) (cov-data-buffers covdata)))
-          (should (hash-table-empty-p cov-coverages)))
-        (kill-buffer)))))
+          (should (hash-table-empty-p cov-coverages)))))))
 
 (ert-deftest cov-kill-buffer-hook-test-2-buffers ()
   "Test that only the buffer being killed is cleared out."
@@ -365,7 +375,7 @@
                                           ;; by Emacs.
                                           :occur (if file-notify--library 1 0))))
                  (file-notify-rm-watch (descriptor)))
-      (with-current-buffer (find-file-noselect testfile)
+      (cov--with-test-buffer testfile
         (let ((cov-coverages (make-hash-table :test 'equal))
               covdata)
           (cov-mode)
@@ -381,8 +391,7 @@
           (should (eq (car (hash-table-values cov-coverages)) covdata))
           (should (= 1 (length (cov-data-buffers covdata))))
           (should-not (memq (current-buffer) (cov-data-buffers covdata)))
-          (should (eq (cov-data-watcher covdata) 'watch-descriptor)))
-        (kill-buffer)))))
+          (should (eq (cov-data-watcher covdata) 'watch-descriptor)))))))
 
 (ert-deftest cov-kill-buffer-hook-test-multiple-files ()
   "Test that `cov-kill-buffer-hook' can handle multiple files and buffers."
@@ -420,7 +429,7 @@
                                          '(watch-descriptor-clover)
                                          :output nil
                                          :occur (if file-notify--library 1 0)))))
-      (with-current-buffer (find-file-noselect testfile1)
+      (cov--with-test-buffer testfile1
         (let (covdata1)
           (cov-mode)
           ;; do not call cov-kill-buffer-hook from the hook
@@ -429,7 +438,7 @@
           ;; add another buffer to the cov-data buffer list
           (cl-pushnew (get-buffer-create (symbol-name (cl-gensym)))
                       (cov-data-buffers covdata1))
-          (with-current-buffer (find-file-noselect testfile2)
+          (cov--with-test-buffer testfile2
             (cov-mode)
             ;; do not call cov-kill-buffer-hook from the hook
             (remove-hook 'kill-buffer-hook 'cov-kill-buffer-hook t)
@@ -438,9 +447,7 @@
             (should (= 1 (length (hash-table-keys cov-coverages))))
             (should (eq (car (hash-table-values cov-coverages)) covdata1))
             (should (= 2 (length (cov-data-buffers covdata1))))
-            (should-not (memq (current-buffer) (cov-data-buffers covdata1)))
-            (kill-buffer)))
-        (kill-buffer)))))
+            (should-not (memq (current-buffer) (cov-data-buffers covdata1)))))))))
 
 ;; cov--get-face
 (ert-deftest cov--get-face-test ()
@@ -461,29 +468,28 @@
     (should (equal (cov--get-face 0.44) 'cov-coverage-run-face))
     (should (equal (cov--get-face 0.0) 'cov-coverage-not-run-face))))
 
+;; cov--set-overlay
+
 ;; cov-mode
 (ert-deftest cov-mode--enable-test ()
-  (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+  (cov--with-test-buffer "test"
     (cov-mode 1)
-    (should (equal (length (cov--overlays)) 9))
-	(kill-buffer)))
+    (should (equal (length (cov--overlays)) 9))))
 
 (ert-deftest cov-mode--disable-test ()
-  (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+  (cov--with-test-buffer "test"
     (cov-mode 1)
     (cov-mode 0)
-    (should (equal (cov--overlays) '()))
-	(kill-buffer)))
+    (should (equal (cov--overlays) '()))))
 
 (ert-deftest cov-mode--re-enable-test ()
-  (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+  (cov--with-test-buffer "test"
     (cov-mode 1)
     (cov-mode 1)
-    (should (equal (length (cov--overlays)) 9))
-	(kill-buffer)))
+    (should (equal (length (cov--overlays)) 9))))
 
 (ert-deftest cov-mode--overlay-start-test ()
-  (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+  (cov--with-test-buffer "test"
     (cov-mode 0)
     (cov-mode 1)
     (let ((overlay-starts (mapcar #'overlay-start (cov--overlays)))
@@ -492,11 +498,10 @@
       (ert-info ("Unexpected overlay starts")
         (should-not (cl-set-difference overlay-starts expected)))
       (ert-info ("Missing overlay starts")
-        (should-not (cl-set-difference expected overlay-starts))))
-	(kill-buffer)))
+        (should-not (cl-set-difference expected overlay-starts))))))
 
 (ert-deftest cov-mode--overlay-end-test ()
-  (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+  (cov--with-test-buffer "test"
     (cov-mode 0)
     (cov-mode 1)
     (let ((overlay-ends (mapcar #'overlay-end (cov--overlays)))
@@ -505,8 +510,7 @@
       (ert-info ("Unexpected overlay ends")
         (should-not (cl-set-difference overlay-ends expected)))
       (ert-info ("Missing overlay ends")
-        (should-not (cl-set-difference expected overlay-ends))))
-	(kill-buffer)))
+        (should-not (cl-set-difference expected overlay-ends))))))
 
 (defun cov-mode--equal-including-properties (s1 s2)
   "Return t if strings S1 and S2 including complicated text properties.
@@ -526,7 +530,7 @@ text properties with list values."
       (not (or pos1 pos2))))) ; if both are nil the strings are equal
 
 (ert-deftest cov-mode--overlay-face-test ()
-  (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+  (cov--with-test-buffer "test"
     (cov-mode 0)
     (cov-mode 1)
     ;; overlay-bfs and expected are lists of list (LINENO BEFORE-STRING)
@@ -551,11 +555,10 @@ text properties with list values."
       (ert-info ("Unexpected overlay before-strings")
         (should-not (cl-set-difference overlay-bfs expected :test cmp)))
       (ert-info ("Missing overlay before-strings")
-        (should-not (cl-set-difference expected overlay-bfs :test cmp))))
-	(kill-buffer)))
+        (should-not (cl-set-difference expected overlay-bfs :test cmp))))))
 
 (ert-deftest cov-mode--overlay-help-test ()
-  (with-current-buffer (find-file-noselect (format "%s/test" test-path))
+  (cov--with-test-buffer "test"
     (cov-mode 0)
     (cov-mode 1)
     (let ((cov-overlays (sort (cov--overlays)
@@ -573,8 +576,7 @@ text properties with list values."
       (should (equal (length cov-overlays) (length expected)))
       (dolist (overlay cov-overlays)
         ;;(print (overlay-get overlay 'help-echo))
-        (should (equal (overlay-get overlay 'help-echo) (pop expected)))))
-	(kill-buffer)))
+        (should (equal (overlay-get overlay 'help-echo) (pop expected)))))))
 
 ;; Local Variables:
 ;; indent-tabs-mode: nil
