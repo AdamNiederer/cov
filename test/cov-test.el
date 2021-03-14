@@ -512,6 +512,98 @@ or a symbol to be resolved at runtime."
       (ert-info ("Missing overlay ends")
         (should-not (cl-set-difference expected overlay-ends))))))
 
+(ert-deftest cov-mode--overlays-narrowed-begin ()
+  "Check narrowing to whole lines in the beginnig of the buffer."
+  (cov--with-test-buffer "test"
+    (cov-mode 0)
+    (goto-char (point-min))
+    ;; Narrow from start to the 85% line (1st to 5th inclusive)
+    ;; including the terminating newline of line 5
+    (narrow-to-region (point-min)
+                      (progn (forward-line 5) (point)))
+    (cov-mode 1)
+    (widen)
+    (let ((ov-regions (cl-loop for ov in (cov--overlays)
+                               collect (list (overlay-start ov) (overlay-end ov))))
+          (expected '((15 35)
+                      (36 56)
+                      (57 77)
+                      (78 78)))) ; the empty last line will also get an overlay
+      (ert-info ("Unexpected overlay region")
+        (should-not (cl-set-difference ov-regions expected :test #'equal)))
+      (ert-info ("Missing overlay region")
+        (should-not (cl-set-difference expected ov-regions :test #'equal))))))
+
+(ert-deftest cov-mode--overlays-narrowed-end ()
+  "Check narrowing to whole lines at the end of the buffer."
+  (cov--with-test-buffer "test"
+    (cov-mode 0)
+    (goto-char (point-min))
+    ;; Narrow from the 84% line to the last line (6st to 11th inclusive)
+    ;; including the terminating newline of line 11
+    (narrow-to-region (progn (forward-line 5) (point))
+                      (point-max))
+    (cov-mode 1)
+    (widen)
+    (let ((ov-regions (cl-loop for ov in (cov--overlays)
+                               collect (list (overlay-start ov) (overlay-end ov))))
+          (expected '((78 98)
+                      (99 119)
+                      (120 140)
+                      (141 161)
+                      (162 182)
+                      (183 204))))
+      (ert-info ("Unexpected overlay region")
+        (should-not (cl-set-difference ov-regions expected :test #'equal)))
+      (ert-info ("Missing overlay region")
+        (should-not (cl-set-difference expected ov-regions :test #'equal))))))
+
+(ert-deftest cov-mode--overlays-narrowed-middle ()
+  "Check narrowing to whole lines in the middle of the buffer."
+  (cov--with-test-buffer "test"
+    (cov-mode 0)
+    (goto-char (point-min))
+    ;; Narrow to the 86% - 45% lines (4th to 8th inclusive) including
+    ;; the terminating newline of line 8
+    (narrow-to-region (progn (forward-line 3) (point))
+                      (progn (forward-line 5) (point)))
+    (cov-mode 1)
+    (widen)
+    (let ((ov-regions (cl-loop for ov in (cov--overlays)
+                               collect (list (overlay-start ov) (overlay-end ov))))
+          (expected '((36 56)
+                      (57 77)
+                      (78 98)
+                      (99 119)
+                      (120 140)
+                      (141 141)))) ; the empty last line will also get an overlay
+      (ert-info ("Unexpected overlay region")
+        (should-not (cl-set-difference ov-regions expected :test #'equal)))
+      (ert-info ("Missing overlay region")
+        (should-not (cl-set-difference expected ov-regions :test #'equal))))))
+
+(ert-deftest cov-mode--overlays-narrowed-middle-broken-lines ()
+  "Check narrowing to mid-lines in the middle of the buffer."
+  (cov--with-test-buffer "test"
+    (cov-mode 0)
+    (goto-char (point-min))
+    (narrow-to-region (progn (forward-line 3) (+ 5 (point)))
+                      (progn (forward-line 5) (+ 5 (point))))
+    (cov-mode 1)
+    (widen)
+    (let ((ov-regions (cl-loop for ov in (cov--overlays)
+                               collect (list (overlay-start ov) (overlay-end ov))))
+          (expected '((41 56)
+                      (57 77)
+                      (78 98)
+                      (99 119)
+                      (120 140)
+                      (141 146))))
+      (ert-info ("Unexpected overlay region")
+        (should-not (cl-set-difference ov-regions expected :test #'equal)))
+      (ert-info ("Missing overlay region")
+        (should-not (cl-set-difference expected ov-regions :test #'equal))))))
+
 (defun cov-mode--equal-including-properties (s1 s2)
   "Return t if strings S1 and S2 including complicated text properties.
 This is like ‘equal-including-properties’ except that it handles
@@ -575,7 +667,6 @@ text properties with list values."
                       "cov: executed 0 times (~0.00% of highest)")))
       (should (equal (length cov-overlays) (length expected)))
       (dolist (overlay cov-overlays)
-        ;;(print (overlay-get overlay 'help-echo))
         (should (equal (overlay-get overlay 'help-echo) (pop expected)))))))
 
 ;; Local Variables:
