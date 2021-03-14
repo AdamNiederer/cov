@@ -449,6 +449,15 @@ or a symbol to be resolved at runtime."
             (should (= 2 (length (cov-data-buffers covdata1))))
             (should-not (memq (current-buffer) (cov-data-buffers covdata1)))))))))
 
+;; cov-set-overlays
+(ert-deftest cov-set-overlays-test-no-coverage ()
+  (cov--with-test-buffer "test"
+    (mocker-let ((cov--get-buffer-coverage () ((:output nil)))
+                 (message (format-sting &rest args)
+                          ((:input `("No coverage data found for %s."
+                                     ,(format "%s/test" test-path))))))
+      (cov-set-overlays))))
+
 ;; cov--get-face
 (ert-deftest cov--get-face-test ()
   (let ((cov-coverage-mode nil)
