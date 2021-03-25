@@ -173,6 +173,10 @@ current directory:
 (defvar cov-coverages (make-hash-table :test 'equal)
   "Storage of coverage data.")
 
+(defsubst cov--message (format-string &rest args)
+  "Call (`message' FORMAT-STRING ARGS) unless `noninteractive' is non-nil."
+  (unless noninteractive (apply #'message format-string args)))
+
 (defun cov--locate-coverage-postfix (file-dir file-name path extension)
   "Return full path of coverage file, if found.
 
@@ -408,8 +412,7 @@ MAX is the maximum coverage count for any line in the file."
      (cov--get-fringe percentage)
      (cov--help times-executed percentage))))
 
-
-(defmacro cov--file-mtime (file)
+(defsubst cov--file-mtime (file)
   "Return the last modification time of FILE."
   (nth 5 (file-attributes file)))
 
@@ -481,10 +484,10 @@ it if necessary, or reloading if the file has changed."
   "Load coverage data into COVERAGE from FILE.
 
 Won't update `(current-buffer)' if IGNORE-CURRENT is non-nil."
-  ;; File mtime changed, reload.
-  (when (not (equal (cov-data-mtime coverage)
-                    (cov--file-mtime file)))
-    (message "Reloading coverage file.")
+  ;; File mtime changed or never set, reload.
+  (unless (and (equal (cov-data-mtime coverage)
+                      (cov--file-mtime file)))
+    (cov--message "Reloading coverage file %s." file)
     (setf (cov-data-coverage coverage) nil))
   (unless (cov-data-coverage coverage)
     (setf (cov-data-coverage coverage) (cov--read-and-parse file (cov-data-type coverage)))
@@ -495,7 +498,7 @@ Won't update `(current-buffer)' if IGNORE-CURRENT is non-nil."
         (setq buffers (remove (current-buffer) buffers)))
       (dolist (buffer buffers)
         (with-current-buffer buffer
-          (message "Updating coverage for \"%s\"" (buffer-name buffer))
+          (cov--message "Updating coverage for \"%s\"" (buffer-name buffer))
           (cov-update))))))
 
 (defun cov-kill-buffer-hook ()

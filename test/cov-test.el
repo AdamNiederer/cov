@@ -2,6 +2,7 @@
 
 (require 'cov)
 (require 'mocker)
+(require 'type-break) ; for timep
 
 (defmacro cov--with-test-buffer (testfile &rest body)
   "Open TESTFILE in a buffer, execute BODY in it, and kill the buffer.
@@ -318,6 +319,34 @@ or a symbol to be resolved at runtime."
         ;; load data for the first time
         (should (setq stored-data (cov--get-buffer-coverage)))
         (should (eq stored-data (cov--get-buffer-coverage)))))))
+
+;; cov--load-coverage
+(ert-deftest cov--load-coverage-test-mtime-check ()
+  "Verify that the mtime-check in cov--load-coverage works."
+  :tags '(cov--load-coverage)
+  (cov--with-test-buffer "test"
+    (let ((coverage (make-cov-data :type 'gcov :buffers (list (current-buffer))))
+          (cov-file (buffer-file-name)))
+      (mocker-let ((cov-update () ((:occur 1))))
+        (cov--load-coverage coverage cov-file))
+      (ert-info ("Some coverage data should have been set")
+        (should (cov-data-coverage coverage)))
+      (ert-info ("mtime field of cov-data struct should be a valid time")
+        (should (timep (cov-data-mtime coverage))))
+      (ert-info ("change cov-data-mtime to force reload")
+        (setf (cov-data-mtime coverage)
+              (time-add (cov-data-mtime coverage) 1))
+        (mocker-let ((cov-update () ((:occur 1))))
+          (cov--load-coverage coverage cov-file ))
+        (ert-info ("Some coverage data should have been set")
+          (should (cov-data-coverage coverage)))
+        (ert-info ("mtime field of cov-data struct should be a valid time")
+          (should (timep (cov-data-mtime coverage)))))
+      (ert-info ("Running again with the same cov-data-mtime should not reload")
+        (mocker-let ((cov--read-and-parse (&rest _) ((:occur 0)))
+                     (cov-update () ((:occur 0))))
+          (cov--load-coverage coverage cov-file )))
+        )))
 
 ;; cov-kill-buffer-hook
 (ert-deftest cov-kill-buffer-hook-test-1-buffer ()
