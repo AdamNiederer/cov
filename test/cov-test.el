@@ -101,7 +101,9 @@ or a symbol to be resolved at runtime."
 
 ;; cov--locate-coverage-postfix
 (ert-deftest cov--locate-coverage-postfix-test ()
-  (let* ((path test-path)
+  "Verify that `cov--locate-coverage-postfix-test' finds a file in the same directory."
+  :tags '(cov--locate-coverage-postfix)
+  (let* ((path (format "%s/gcov/same-dir" test-path))
          (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-postfix path "test" "." ".gcov"))
          (expected (file-truename (format "%s/test.gcov" path))))
@@ -110,16 +112,18 @@ or a symbol to be resolved at runtime."
              expected))))
 
 (ert-deftest cov--locate-coverage-postfix---subdir-test ()
-  (let* ((path test-path)
+  "Verify that `cov--locate-coverage-postfix-test' finds a file in a subdir."
+  :tags '(cov--locate-coverage-postfix)
+  (let* ((path (format "%s/gcov/same-dir" test-path))
          (cov-coverage-file-paths '("."))
-         (actual (cov--locate-coverage-postfix path "test" "../test" ".gcov"))
+         (actual (cov--locate-coverage-postfix path "test" "../same-dir" ".gcov"))
          (expected (file-truename (format "%s/test.gcov" path))))
     (should (equal
              actual
              expected))))
 
 (ert-deftest cov--locate-coverage-postfix--wrong-subdir-test ()
-  (let* ((path test-path)
+  (let* ((path (format "%s/gcov/same-dir" test-path))
          (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-postfix path "test" "wrong-subdir" ".gcov")))
     (should (equal
@@ -127,7 +131,7 @@ or a symbol to be resolved at runtime."
              nil))))
 
 (ert-deftest cov--locate-coverage-postfix--wrong-postfix-test ()
-  (let* ((path test-path)
+  (let* ((path (format "%s/gcov/same-dir" test-path))
          (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-postfix path "test" "." ".wrong-postfix")))
     (should (equal
@@ -136,7 +140,9 @@ or a symbol to be resolved at runtime."
 
 ;; cov--locate-coverage-path
 (ert-deftest cov--locate-coverage-path-test ()
-  (let* ((path test-path)
+  "Verify that `cov--locate-coverage-path' finds a file in the same dir."
+  :tags '(cov--locate-coverage-path)
+  (let* ((path (format "%s/gcov/same-dir" test-path))
          (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-path path "test" "."))
          (expected (cons (file-truename (format "%s/test.gcov" path)) 'gcov)))
@@ -145,16 +151,18 @@ or a symbol to be resolved at runtime."
              expected))))
 
 (ert-deftest cov--locate-coverage-path---subdir-test ()
-  (let* ((path test-path)
+  "Verify that `cov--locate-coverage-path' finds a file on a path."
+  :tags '(cov--locate-coverage-path)
+  (let* ((path (format "%s/gcov/same-dir" test-path))
          (cov-coverage-file-paths '("."))
-         (actual (cov--locate-coverage-path path "test" "../test"))
+         (actual (cov--locate-coverage-path path "test" "../same-dir"))
          (expected (cons (file-truename (format "%s/test.gcov" path)) 'gcov)))
     (should (equal
              actual
              expected))))
 
 (ert-deftest cov--locate-coverage-path--wrong-subdir-test ()
-  (let* ((path test-path)
+  (let* ((path (format "%s/gcov/same-dir" test-path))
          (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-path path "test" "wrong-subdir")))
     (should (equal
@@ -163,7 +171,9 @@ or a symbol to be resolved at runtime."
 
 ;; cov--locate-coverage
 (ert-deftest cov--locate-coverage-test ()
-  (let* ((path test-path)
+  "Verify that `cov--locate-coverage' finds a gcov file in the same dir."
+  :tags '(cov--locate-coverage)
+  (let* ((path (format "%s/gcov/same-dir" test-path))
          (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage (format "%s/%s" path "test")))
          (expected (cons (file-truename (format "%s/test.gcov" path)) 'gcov)))
@@ -172,7 +182,8 @@ or a symbol to be resolved at runtime."
              expected))))
 
 (ert-deftest cov--locate-coverage-wrong-file-test ()
-  (let* ((path test-path)
+  :tags '(cov--locate-coverage)
+  (let* ((path (format "%s/gcov/same-dir" test-path))
          (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage (format "%s/%s" path "wrong-file"))))
     (should (equal
@@ -272,7 +283,7 @@ or a symbol to be resolved at runtime."
                                         ((:input-matcher
                                           (lambda (file flags callback)
                                             (and
-                                             (string= test-path file)
+                                             (string= (format "%s/gcov/same-dir" test-path) file)
                                              (equal flags '(change))
                                              (functionp callback)))
                                           ;; dummy watch descriptor
@@ -280,7 +291,7 @@ or a symbol to be resolved at runtime."
                                           ;; Will not be called if file-notify is not supported
                                           ;; by Emacs.
                                           :occur (if file-notify--library 1 0)))))
-      (cov--with-test-buffer "test"
+      (cov--with-test-buffer "gcov/same-dir/test"
         (should (cov--get-buffer-coverage))
         ;; Check that one data entry has been stored in cov-coverages
         (should (equal (hash-table-count cov-coverages) 1))
@@ -306,7 +317,7 @@ or a symbol to be resolved at runtime."
                                         ((:input-matcher
                                           (lambda (file flags callback)
                                             (and
-                                             (string= test-path file)
+                                             (string= (format "%s/gcov/same-dir" test-path) file)
                                              (equal flags '(change))
                                              (functionp callback)))
                                           ;; dummy watch descriptor
@@ -315,7 +326,7 @@ or a symbol to be resolved at runtime."
                                           ;; by Emacs.
                                           :occur (if file-notify--library 1 0)
                                           ))))
-      (cov--with-test-buffer "test"
+      (cov--with-test-buffer "gcov/same-dir/test"
         ;; load data for the first time
         (should (setq stored-data (cov--get-buffer-coverage)))
         (should (eq stored-data (cov--get-buffer-coverage)))))))
@@ -324,7 +335,7 @@ or a symbol to be resolved at runtime."
 (ert-deftest cov--load-coverage-test-mtime-check ()
   "Verify that the mtime-check in cov--load-coverage works."
   :tags '(cov--load-coverage)
-  (cov--with-test-buffer "test"
+  (cov--with-test-buffer "gcov/same-dir/test"
     (let ((coverage (make-cov-data :type 'gcov :buffers (list (current-buffer))))
           (cov-file (buffer-file-name)))
       (mocker-let ((cov-update () ((:occur 1))))
@@ -352,13 +363,13 @@ or a symbol to be resolved at runtime."
 (ert-deftest cov-kill-buffer-hook-test-1-buffer ()
   "Test kill hook when a single cov file and buffer is in `cov-coverages'."
   :tags '(cov-kill-buffer-hook)
-  (let* ((testfile (format "%s/test" test-path))
+  (let* ((testfile (format "%s/gcov/same-dir/test" test-path))
          (covfile (concat testfile ".gcov")))
     (mocker-let ((file-notify-add-watch (file flags callback)
                                         ((:input-matcher
                                           (lambda (file flags callback)
                                             (and
-                                             (string= test-path file)
+                                             (string= (format "%s/gcov/same-dir" test-path) file)
                                              (equal flags '(change))
                                              (functionp callback)))
                                           ;; dummy watch descriptor
@@ -389,13 +400,13 @@ or a symbol to be resolved at runtime."
 (ert-deftest cov-kill-buffer-hook-test-2-buffers ()
   "Test that only the buffer being killed is cleared out."
   :tags '(cov-kill-buffer-hook)
-  (let* ((testfile (format "%s/test" test-path))
+  (let* ((testfile (format "%s/gcov/same-dir/test" test-path))
          (covfile (concat testfile ".gcov")))
     (mocker-let ((file-notify-add-watch (file flags callback)
                                         ((:input-matcher
                                           (lambda (file flags callback)
                                             (and
-                                             (string= test-path file)
+                                             (string= (format "%s/gcov/same-dir" test-path) file)
                                              (equal flags '(change))
                                              (functionp callback)))
                                           ;; dummy watch descriptor
@@ -425,7 +436,7 @@ or a symbol to be resolved at runtime."
 (ert-deftest cov-kill-buffer-hook-test-multiple-files ()
   "Test that `cov-kill-buffer-hook' can handle multiple files and buffers."
   :tags '(cov-kill-buffer-hook)
-  (let* ((testfile1 (format "%s/test" test-path))
+  (let* ((testfile1 (format "%s/gcov/same-dir/test" test-path))
          (testfile2 (format "%s/clover/test2" test-path))
          (covfile (concat testfile1 ".gcov"))
          (cloverfile (format "%s/clover/clover.xml" test-path))
@@ -434,7 +445,7 @@ or a symbol to be resolved at runtime."
                                         ((:input-matcher
                                           (lambda (file flags callback)
                                             (and
-                                             (string= test-path file)
+                                             (string= (format "%s/gcov/same-dir" test-path) file)
                                              (equal flags '(change))
                                              (functionp callback)))
                                           ;; dummy watch descriptor
@@ -480,11 +491,11 @@ or a symbol to be resolved at runtime."
 
 ;; cov-set-overlays
 (ert-deftest cov-set-overlays-test-no-coverage ()
-  (cov--with-test-buffer "test"
+  (cov--with-test-buffer "gcov/same-dir/test"
     (mocker-let ((cov--get-buffer-coverage () ((:output nil)))
                  (message (format-sting &rest args)
                           ((:input `("No coverage data found for %s."
-                                     ,(format "%s/test" test-path))))))
+                                     ,(format "%s/gcov/same-dir/test" test-path))))))
       (cov-set-overlays))))
 
 ;; cov--get-face
@@ -510,24 +521,27 @@ or a symbol to be resolved at runtime."
 
 ;; cov-mode
 (ert-deftest cov-mode--enable-test ()
-  (cov--with-test-buffer "test"
+  "Verify that `cov-mode' adds overlays."
+  (cov--with-test-buffer "gcov/same-dir/test"
     (cov-mode 1)
     (should (equal (length (cov--overlays)) 9))))
 
 (ert-deftest cov-mode--disable-test ()
-  (cov--with-test-buffer "test"
+  "Verify that `cov-mode' removes overlays when disabled."
+  (cov--with-test-buffer "gcov/same-dir/test"
     (cov-mode 1)
     (cov-mode 0)
     (should (equal (cov--overlays) '()))))
 
 (ert-deftest cov-mode--re-enable-test ()
-  (cov--with-test-buffer "test"
+  "Verify that calling `cov-mode' several times does not add more overlays."
+  (cov--with-test-buffer "gcov/same-dir/test"
     (cov-mode 1)
     (cov-mode 1)
     (should (equal (length (cov--overlays)) 9))))
 
 (ert-deftest cov-mode--overlay-start-test ()
-  (cov--with-test-buffer "test"
+  (cov--with-test-buffer "gcov/same-dir/test"
     (cov-mode 0)
     (cov-mode 1)
     (let ((overlay-starts (mapcar #'overlay-start (cov--overlays)))
@@ -539,7 +553,7 @@ or a symbol to be resolved at runtime."
         (should-not (cl-set-difference expected overlay-starts))))))
 
 (ert-deftest cov-mode--overlay-end-test ()
-  (cov--with-test-buffer "test"
+  (cov--with-test-buffer "gcov/same-dir/test"
     (cov-mode 0)
     (cov-mode 1)
     (let ((overlay-ends (mapcar #'overlay-end (cov--overlays)))
@@ -552,7 +566,7 @@ or a symbol to be resolved at runtime."
 
 (ert-deftest cov-mode--overlays-narrowed-begin ()
   "Check narrowing to whole lines in the beginnig of the buffer."
-  (cov--with-test-buffer "test"
+  (cov--with-test-buffer "gcov/same-dir/test"
     (cov-mode 0)
     (goto-char (point-min))
     ;; Narrow from start to the 85% line (1st to 5th inclusive)
@@ -573,7 +587,7 @@ or a symbol to be resolved at runtime."
 
 (ert-deftest cov-mode--overlays-narrowed-end ()
   "Check narrowing to whole lines at the end of the buffer."
-  (cov--with-test-buffer "test"
+  (cov--with-test-buffer "gcov/same-dir/test"
     (cov-mode 0)
     (goto-char (point-min))
     ;; Narrow from the 84% line to the last line (6st to 11th inclusive)
@@ -597,7 +611,7 @@ or a symbol to be resolved at runtime."
 
 (ert-deftest cov-mode--overlays-narrowed-middle ()
   "Check narrowing to whole lines in the middle of the buffer."
-  (cov--with-test-buffer "test"
+  (cov--with-test-buffer "gcov/same-dir/test"
     (cov-mode 0)
     (goto-char (point-min))
     ;; Narrow to the 86% - 45% lines (4th to 8th inclusive) including
@@ -620,7 +634,7 @@ or a symbol to be resolved at runtime."
 
 (ert-deftest cov-mode--overlays-narrowed-middle-broken-lines ()
   "Check narrowing to mid-lines in the middle of the buffer."
-  (cov--with-test-buffer "test"
+  (cov--with-test-buffer "gcov/same-dir/test"
     (cov-mode 0)
     (goto-char (point-min))
     (narrow-to-region (progn (forward-line 3) (+ 5 (point)))
@@ -658,7 +672,7 @@ text properties with list values."
       (not (or pos1 pos2))))) ; if both are nil the strings are equal
 
 (ert-deftest cov-mode--overlay-face-test ()
-  (cov--with-test-buffer "test"
+  (cov--with-test-buffer "gcov/same-dir/test"
     (cov-mode 0)
     (cov-mode 1)
     ;; overlay-bfs and expected are lists of list (LINENO BEFORE-STRING)
@@ -686,7 +700,7 @@ text properties with list values."
         (should-not (cl-set-difference expected overlay-bfs :test cmp))))))
 
 (ert-deftest cov-mode--overlay-help-test ()
-  (cov--with-test-buffer "test"
+  (cov--with-test-buffer "gcov/same-dir/test"
     (cov-mode 0)
     (cov-mode 1)
     (let ((cov-overlays (sort (cov--overlays)
