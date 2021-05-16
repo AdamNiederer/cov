@@ -134,6 +134,14 @@ or a symbol to be resolved at runtime."
              actual
              nil))))
 
+(ert-deftest cov--locate-coverage-postfix--split-dir ()
+  "Verify that `cov--locate-coverage-postfix' finds file in a different tree."
+  (let* ((basepath (format "%s/gcov/split-dir" test-path))
+         (srcpath (format "%s/src" basepath))
+         (actual (cov--locate-coverage-postfix srcpath "test" "../bld" ".gcov"))
+         (expected (file-truename (format "%s/bld/test.gcov" basepath))))
+    (should (equal actual expected))))
+
 ;; cov--locate-coverage-path
 (ert-deftest cov--locate-coverage-path-test ()
   "Verify that `cov--locate-coverage-path' finds a file in the same dir."
@@ -165,6 +173,14 @@ or a symbol to be resolved at runtime."
              actual
              nil))))
 
+(ert-deftest cov--locate-coverage-path--split-dir ()
+  "Verify `cov--locate-coverage-path' for split directories."
+  (let* ((path (format "%s/gcov/split-dir" test-path))
+         (cov-coverage-alist '((".gcov" . gcov)))
+         (actual (cov--locate-coverage-path (format "%s/src" path) "test" "../bld"))
+         (expected (cons (file-truename (format "%s/bld/test.gcov" path)) 'gcov)))
+    (should (equal actual expected))))
+
 ;; cov--locate-coverage
 (ert-deftest cov--locate-coverage-test ()
   "Verify that `cov--locate-coverage' finds a gcov file in the same dir."
@@ -185,6 +201,30 @@ or a symbol to be resolved at runtime."
     (should (equal
              actual
              nil))))
+
+(ert-deftest cov--locate-coverage-split-dir-test ()
+  "Verify `cov--locate-coverage' for split directories."
+  :tags '(cov--locate-coverage)
+  (let* ((path (format "%s/gcov/split-dir" test-path))
+         (cov-coverage-alist '((".gcov" . gcov)))
+         (cov-coverage-file-paths '("." "../bld"))
+         (actual (cov--locate-coverage (format "%s/src/test" path)))
+         (expected (cons (file-truename (format "%s/bld/test.gcov" path)) 'gcov)))
+    (should (equal actual expected))))
+
+;; cov--coverage
+(ert-deftest cov--coverage-test ()
+  "Verify that `cov--coverage' sets the local variable `cov-coverage-file'."
+  :tags '(cov--coverage)
+  (cov--with-test-buffer "gcov/same-dir/test"
+    ;; should not be buffer local already
+    (should (not (assq 'cov-coverage-file (buffer-local-variables))))
+    (let ((expected (cons (format "%s.gcov" (buffer-file-name)) 'gcov))
+          (returned (cov--coverage)))
+      (should (equal expected returned))
+      ;; at this point is should be set buffer-local
+      (should (assq 'cov-coverage-file (buffer-local-variables)))
+      (should (eq returned cov-coverage-file)))))
 
 ;; cov-data--remove-buffer
 (ert-deftest cov-data--remove-buffer-test ()
