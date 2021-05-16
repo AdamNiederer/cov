@@ -104,7 +104,6 @@ or a symbol to be resolved at runtime."
   "Verify that `cov--locate-coverage-postfix-test' finds a file in the same directory."
   :tags '(cov--locate-coverage-postfix)
   (let* ((path (format "%s/gcov/same-dir" test-path))
-         (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-postfix path "test" "." ".gcov"))
          (expected (file-truename (format "%s/test.gcov" path))))
     (should (equal
@@ -115,7 +114,6 @@ or a symbol to be resolved at runtime."
   "Verify that `cov--locate-coverage-postfix-test' finds a file in a subdir."
   :tags '(cov--locate-coverage-postfix)
   (let* ((path (format "%s/gcov/same-dir" test-path))
-         (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-postfix path "test" "../same-dir" ".gcov"))
          (expected (file-truename (format "%s/test.gcov" path))))
     (should (equal
@@ -124,7 +122,6 @@ or a symbol to be resolved at runtime."
 
 (ert-deftest cov--locate-coverage-postfix--wrong-subdir-test ()
   (let* ((path (format "%s/gcov/same-dir" test-path))
-         (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-postfix path "test" "wrong-subdir" ".gcov")))
     (should (equal
              actual
@@ -132,7 +129,6 @@ or a symbol to be resolved at runtime."
 
 (ert-deftest cov--locate-coverage-postfix--wrong-postfix-test ()
   (let* ((path (format "%s/gcov/same-dir" test-path))
-         (cov-coverage-file-paths '("."))
          (actual (cov--locate-coverage-postfix path "test" "." ".wrong-postfix")))
     (should (equal
              actual
