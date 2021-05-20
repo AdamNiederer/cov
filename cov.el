@@ -298,6 +298,67 @@ Read from `current-buffer' if BUFFER is nil. Return a list
 					   collect (list (string-to-number (match-string 1))
 									 (string-to-number (match-string 2)))))))))))
 
+(defconst cov--lcov-prefix-re
+  (rx line-start
+      (or (seq (group-n 1 (or "TN" "SF" "FN" "FNDA" "FNF" "FNH" "BRDA"
+                              "BRF" "BRH" "DA" "LF" "LH"))
+               ":")
+          (group-n 1 "end_of_record")))
+  "Regex for matching the line prefixes of lcov coverage data.")
+
+
+(defun cov--lcov-parse (&optional buffer)
+  "Parse lcov trace file in BUFFER.
+Read from `current-buffer' if BUFFER is nil.
+Return a list `((FILE . ((LINE-NUM EXEC-COUNT) ...)) ...)'."
+  (let ((data (make-hash-table :test 'equal))  ; the collected data
+        filelines                              ; data for the current SourceFile
+        sourcefile)                            ; the current SourceFile
+    (with-current-buffer (or buffer (current-buffer))
+      (save-excursion
+        (save-match-data
+          (save-restriction
+            (widen)
+            (goto-char (point-min))
+            (while (not (eobp))
+              (unless (looking-at cov--lcov-prefix-re)
+                (error "Unable to parse lcov data from %s: %s"
+                       (or (buffer-file-name) (buffer-name))
+                       (buffer-substring (line-beginning-position) (line-end-position))))
+              (goto-char (match-end 0))
+              (pcase (match-string 1)
+                ;; Each SF signals the start of a new SourceFile.
+                ("SF" (if (or sourcefile filelines)
+                          (error "lcov parse error, SF with no preceeding end_of_record %s:%d"
+                                 (buffer-file-name) (line-number-at-pos (point)))
+                        ;; SF always hold an absolute path
+                        (setq sourcefile (file-truename
+                                          (expand-file-name
+                                           (buffer-substring (point) (line-end-position))
+                                           (file-name-directory (buffer-file-name)))))
+                        (setq filelines
+                              (or (gethash sourcefile data)
+                                  (puthash sourcefile (make-hash-table :test 'eql) data)))))
+                ;; DA:<line-num>,<exec-count>[,...]
+                ("DA" (if (looking-at (rx (group-n 1 (1+ digit)) ?,
+                                          (group-n 2 (1+ digit))
+                                          (optional ?, (group (* any)))))
+                          (let ((lineno (string-to-number (match-string 1)))
+                                (count (string-to-number (match-string 2))))
+                            (puthash lineno (+ (gethash lineno filelines 0) count) filelines))
+                        (error "lcov parse error, bad DA line %s:%d"
+                               (buffer-file-name) (line-number-at-pos (point)))))
+                ;; End of coverage data for a source file, push
+                ;; current file information to `data'
+                ("end_of_record" (setq sourcefile nil filelines nil)))
+              (forward-line 1))))))
+    ;; TODO: Make it possible - or even mandatory - to use hashes instead of lists
+    (cl-loop for sf being the hash-keys of data using (hash-values lines)
+             collect (cons sf
+                           (cl-loop for lineno being the hash-keys of lines
+                                    using (hash-values count)
+                                    collect (list lineno count))))))
+
 (defun cov--coveralls-parse ()
   "Parse coveralls coverage.
 

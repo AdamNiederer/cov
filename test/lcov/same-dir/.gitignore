@@ -1,0 +1,6 @@
+/*.o
+/*.gcda
+/*.gcno
+/baseline.info
+/lcov-html
+/testprog*
