@@ -262,6 +262,53 @@ discarded when the buffer is killed."
          (expected (cons (file-truename (format "%s/bld/test.gcov" path)) 'gcov)))
     (should (equal actual expected))))
 
+(ert-deftest cov--locate-lcov-file-name-test ()
+  "Verify `cov-lcov-file-name' specifyin an existing file works."
+  :tags '(cov--locate-lcov)
+  (cov--with-test-buffer "lcov/same-dir/main.c"
+    (let* ((file (file-name-nondirectory (buffer-file-name)))
+           (dir (file-name-directory (buffer-file-name)))
+           (cov-lcov-file-name (concat dir "lcov.info"))
+           (cov-lcov-patterns '("expected.el"))) ; should NOT be selected
+      (should (equal (cons (copy-sequence cov-lcov-file-name) 'lcov)
+                     (cov--locate-lcov dir file))))))
+
+(ert-deftest cov--locate-lcov-no-file-name-test ()
+  "Verify that unset `cov-lcov-file-name' and `cov-lcov-patterns' will find nothing."
+  :tags '(cov--locate-lcov)
+  (cov--with-test-buffer "lcov/same-dir/main.c"
+    (let* ((file (file-name-nondirectory (buffer-file-name)))
+           (dir (file-name-directory (buffer-file-name)))
+           (cov-lcov-file-name (concat dir "no.info"))
+           (cov-lcov-patterns nil))
+      (should-not (cov--locate-lcov dir file)))))
+
+(ert-deftest cov--locate-lcov-file-patterns-test ()
+  "Verify that the first matchin file pattern in `cov-lcov-patterns' is selected."
+  :tags '(cov--locate-lcov)
+  (cov--with-test-buffer "lcov/same-dir/main.c"
+    (let* ((file (file-name-nondirectory (buffer-file-name)))
+           (dir (file-name-directory (buffer-file-name)))
+           (cov-lcov-file-name nil)
+           (cov-lcov-patterns '("no.info" "lcov.info" "expected.el")))
+      (should (equal (cons (concat dir "lcov.info") 'lcov)
+                     (cov--locate-lcov dir file))))))
+
+(ert-deftest cov--locate-lcov-funcion-patterns-test ()
+  "Verify that the first matching function pattern in `cov-lcov-patterns' is selected."
+  :tags '(cov--locate-lcov)
+  (cov--with-test-buffer "lcov/same-dir/main.c"
+    (let* ((file (file-name-nondirectory (buffer-file-name)))
+           (dir (file-name-directory (buffer-file-name)))
+           (cov-lcov-file-name nil)
+           (cov-lcov-patterns '("no.info"
+                                (lambda (file-dir file-name) nil)
+                                (lambda (file-dir file-name) (concat file-dir "lcov.info"))
+                                (lambda (file-dir file-name) (concat file-dir "no.info")))))
+      (should (equal (cons (concat dir "lcov.info") 'lcov)
+                     (cov--locate-lcov dir file))))))
+
+
 ;; cov--coverage
 (ert-deftest cov--coverage-test ()
   "Verify that `cov--coverage' sets the local variable `cov-coverage-file'."
