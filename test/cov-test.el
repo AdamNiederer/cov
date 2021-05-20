@@ -10,6 +10,9 @@
 (require 'mocker)
 (require 'type-break) ; for timep
 
+;; forward declarations
+(defvar test-path)
+
 (defmacro cov--with-test-buffer (testfile &rest body)
   "Open TESTFILE in a buffer, execute BODY in it, and kill the buffer.
 TESTFILE can be an absolute path, a path relative to `test-path',
@@ -95,6 +98,33 @@ discarded when the buffer is killed."
     (should (equal
              (cov--gcov-parse)
              `((,(file-truename (concat default-directory "test")) (24 0)))))))
+
+;; cov--lcov-parse
+(ert-deftest cov--lcov-parse-test ()
+  "Basic test of the lcov parser."
+  :tags '(cov--lcov-parse)
+  ;; Load expected data
+  (let ((expected (read (with-temp-buffer
+                          (insert-file-contents (concat test-path "/lcov/same-dir/expected.el"))
+                          (buffer-string)))))
+    (cov--with-test-buffer "lcov/same-dir/lcov.info"
+      (let ((data (cov--lcov-parse)))
+        (should (equal data expected))))))
+
+(ert-deftest cov--lcov-parse-bad-file ()
+  "Test lcov parsing a file with bad data."
+  :tags '(cov--lcov-parse)
+  (with-temp-buffer
+    (insert "dummy data\n")
+    (should-error (cov--lcov-parse (current-buffer)))))
+
+(ert-deftest cov--lcov-parse-no-end_of_record ()
+  "Test lcov parsing with missing end_of_record."
+  :tags '(cov--lcov-parse)
+  (cov--with-test-buffer "lcov/same-dir/lcov.info"
+    (goto-char 1)
+    (delete-matching-lines "end_of_record")
+    (should-error (cov--lcov-parse))))
 
 ;; cov--coveralls-parse
 (ert-deftest cov--coveralls-parse--basic-test ()
