@@ -1,4 +1,10 @@
-(load-file "cov.el")
+;;; cov-test.el -- Unit tests for cov.el -*- lexical-binding: t -*-
+
+;;; Commentary:
+
+;; Tests for cov.el
+
+;;; Code:
 
 (require 'cov)
 (require 'mocker)
