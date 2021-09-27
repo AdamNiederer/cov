@@ -375,6 +375,43 @@ or a symbol to be resolved at runtime."
         (should (setq stored-data (cov--get-buffer-coverage)))
         (should (eq stored-data (cov--get-buffer-coverage)))))))
 
+(ert-deftest cov--get-buffer-coverage-test-split-dir-relative ()
+  "Verify that `cov--get-buffer-coverage' stores and reuses data in  `cov-coverages'."
+  :tags '(cov--get-buffer-coverage)
+  (let ((cov-coverages (make-hash-table :test 'equal)) ;; Empty hash table
+        kill-buffer-hook  ;; avoid contaminating global hook
+        (cov-coverage-file-paths '("." "../bld")) ;; make sure we can find the gcov file
+        stored-data)
+    ;; a mock file-notify-add-watch ensures we do not have stale
+    ;; watchers after the test and verifies that the watcher is set up
+    ;; for the correct dir
+    (mocker-let ((file-notify-add-watch (file flags callback)
+                                        ((:input-matcher
+                                          (lambda (file flags callback)
+                                            (and
+                                             (string= (format "%s/gcov/split-dir/bld" test-path) file)
+                                             (equal flags '(change))
+                                             (functionp callback)))
+                                          ;; dummy watch descriptor
+                                          :output 'watch-descriptor
+                                          ;; Will not be called if file-notify is not supported
+                                          ;; by Emacs.
+                                          :occur (if file-notify--library 1 0)
+                                          ))))
+      (cov--with-test-buffer "gcov/split-dir/src/test"
+        ;; These should sexps check the progress of cov--get-buffer-coverage
+        (should (cov--coverage)) ;; coverage data is found
+        (setq stored-data (cov--get-buffer-coverage)) ;; call the actual function
+         ;; verify that a hash-table entry has been created
+        (should (= (hash-table-count cov-coverages) 1))
+        ;; Check that the kill hook has been added
+        (should (memq 'cov-kill-buffer-hook kill-buffer-hook))
+        (ert-info ((pp-to-string (hash-table-keys cov-coverages)))
+          (ert-info ((pp-to-string (hash-table-values cov-coverages)))
+            (should stored-data)
+            ;; Verify that the loaded data can be found in the hash table
+            (should (eq stored-data (cov--get-buffer-coverage)))))))))
+
 ;; cov--load-coverage
 (ert-deftest cov--load-coverage-test-mtime-check ()
   "Verify that the mtime-check in cov--load-coverage works."
