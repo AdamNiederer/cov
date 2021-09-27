@@ -42,7 +42,7 @@
 (require 'elquery)
 
 (defgroup cov nil
-  "The group for everything in cov.el"
+  "The group for everything in cov.el."
   :group 'tools)
 
 (defgroup cov-faces nil
@@ -125,8 +125,8 @@ See `cov-coverage-mode'"
 
 (defface cov-coverage-not-run-face
   '((((class color)) :foreground "red"))
-  "Fringe indicator face used in coverage mode for lines which were not run. See
-`cov-coverage-mode'"
+  "Fringe indicator face used in coverage mode for lines which were not run.
+See `cov-coverage-mode'"
   :tag "Cov coverage mode not-run face"
   :group 'cov-faces)
 
@@ -233,13 +233,12 @@ Looks for a `clover.xml' file. Return nil it not found."
       (cons (file-truename (f-join dir "coverage.json")) 'coveragepy))))
 
 (defun cov--coverage ()
-  "Return coverage file and tool.
+  "Return coverage file and tool for the file visited by the current buffer.
 
-Returns a cons cell of the form (COV-FILE-PATH . COVERAGE-TOOL)
-for current buffer.
-
-If `cov-coverage-file' is non nil, the value of that variable is
-returned. Otherwise `cov--locate-coverage' is called."
+Return a cons cell of the form (COVDATA-FILE-PATH . COVERAGE-TOOL) or
+nil if no coverage data is found.
+Find coverage data using `cov--locate-coverage' and cache the
+results in the buffer local variable `cov-coverage-file'."
   (or cov-coverage-file
       ;; In case we're enabled in a buffer without a file.
       (when (buffer-file-name)
@@ -337,8 +336,7 @@ the JSON file, it does not create the file.
 Coveragepy just reports whether or not a certain line of code was executed.
 But it does not report how many times a certain line was executed.
 
-Project coveragepy is released at <https://github.com/nedbat/coveragepy/>.
-"
+Project coveragepy is released at <https://github.com/nedbat/coveragepy/>."
   (let*
       ((json-object-type 'hash-table)
        (json-array-type 'list)
