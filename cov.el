@@ -262,6 +262,24 @@ Read from `current-buffer' if BUFFER is nil. Return a list
 		  ;; Derive the name of the covered file from the filename of
 		  ;; the coverage file.
 		  (filename (file-name-sans-extension (f-filename cov-coverage-file))))
+      ;; Replace the filename with the one from the file preamble
+      ;; `Source' tag or `file' line in the intermediate format.
+      ;; TODO: The intermediate format actually support multiple
+      ;; source files, the parser should be extended to manage that.
+      (save-excursion
+        (save-match-data
+          (save-restriction
+            (widen)
+            ;; Temporarily widen the buffer to read the file tag.
+            ;; TODO: Might not work correctly for a intermediate file
+            ;; with multiple source file entries.
+            (goto-char (point-min))
+            ;; Do not search further than 1000 characters. The Source
+            ;; tag is typically the first line and the file entry
+            ;; typically the second.  TODO: Parse the entire header.
+            ;; The Source header always hold a ralative path.
+            (when (re-search-forward (rx (or ":Source:" "file:") (group (1+ any))) 1000 t)
+              (setq filename (match-string 1))))))
 	  (save-excursion
 		(save-match-data
 		  (goto-char (point-min))

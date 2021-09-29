@@ -21,7 +21,8 @@ or a symbol to be resolved at runtime."
 ;; cov--gcov-parse
 (ert-deftest cov--gcov-parse--hyphen-test ()
   (with-temp-buffer
-    (insert "        -:   22:        ")
+    (insert "        -:    0:Source:test\n"
+            "        -:   22:        ")
     (goto-char 1)
     (setq-local cov-coverage-file "test")
     (should (equal
@@ -30,7 +31,8 @@ or a symbol to be resolved at runtime."
 
 (ert-deftest cov--gcov-parse--block-test ()
   (with-temp-buffer
-    (insert "        1:   21-block  0")
+    (insert "        -:    0:Source:test\n"
+            "        1:   21-block  0")
     (goto-char 1)
     (setq-local cov-coverage-file "test")
     (should (equal
@@ -39,7 +41,8 @@ or a symbol to be resolved at runtime."
 
 (ert-deftest cov--gcov-parse--executed-test ()
   (with-temp-buffer
-    (insert "        6:   24:        ")
+    (insert "        -:    0:Source:test\n"
+            "        6:   24:        ")
     (goto-char 1)
     (setq-local cov-coverage-file "test")
     (should (equal
@@ -48,7 +51,8 @@ or a symbol to be resolved at runtime."
 
 (ert-deftest cov--gcov-parse--big-value-test ()
   (with-temp-buffer
-    (insert "999999999:99999:        ")
+    (insert "        -:    0:Source:test\n"
+            "999999999:99999:        ")
     (goto-char 1)
     (setq-local cov-coverage-file "test")
     (should (equal
@@ -57,7 +61,10 @@ or a symbol to be resolved at runtime."
 
 (ert-deftest cov--gcov-parse--multiline-test ()
   (with-temp-buffer
-    (insert "        6:    1:\n       16:    2:\n       66:    3:")
+    (insert "        -:    0:Source:test\n"
+            "        6:    1:\n"
+            "       16:    2:\n"
+            "       66:    3:")
     (goto-char 1)
     (setq-local cov-coverage-file "test")
 	(let ((expected '(("test" (3 66) (2 16) (1 6))))
@@ -70,7 +77,8 @@ or a symbol to be resolved at runtime."
 
 (ert-deftest cov--gcov-parse--not-executed-test ()
   (with-temp-buffer
-    (insert "    #####:   24:        ")
+    (insert "        -:    0:Source:test\n"
+            "    #####:   24:        ")
     (goto-char 1)
     (setq-local cov-coverage-file "test")
     (should (equal
