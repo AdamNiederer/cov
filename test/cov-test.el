@@ -101,10 +101,11 @@ or a symbol to be resolved at runtime."
   (with-temp-buffer
     (insert-file-contents (format "%s/clover/clover.xml" test-path))
     (goto-char 1)
-    (setq-local cov-coverage-file "clover.xml")
+    (setq-local cov-coverage-file (format "%s/clover/clover.xml" test-path))
     (should (equal
              (cov--clover-parse)
-             '(("test2" (3 100) (4 86) (5 85) (6 84) (7 46) (8 45) (9 44)
+             `((,(format "%s/clover/%s" test-path "test2")
+                (3 100) (4 86) (5 85) (6 84) (7 46) (8 45) (9 44)
                 (10 1) (11 0)))))))
 
 ;; cov--locate-coverage-postfix
