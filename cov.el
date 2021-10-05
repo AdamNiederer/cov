@@ -201,14 +201,20 @@ Look in FILE-DIR for coverage for FILE-NAME in PATH."
 The function iterates over `cov-coverage-file-path' for path
 candidates or locate functions. The first found file will be
 returned as a cons cell of the form (COV-FILE-PATH .
-COVERAGE-TOOL). If no file is found nil is returned."
-  (let ((file-dir (f-dirname file-path))
-        (file-name (f-filename file-path)))
-    (cl-some (lambda (path-or-fun)
-               (if (stringp path-or-fun)
-                   (cov--locate-coverage-path file-dir file-name path-or-fun)
-                 (funcall path-or-fun file-dir file-name)))
-             cov-coverage-file-paths)))
+COVERAGE-TOOL). If no file is found return nil. COV-FILE-PATH
+should always be absolute."
+  (let* ((file-dir (f-dirname file-path))
+         (file-name (f-filename file-path))
+         (cov-data (cl-some (lambda (path-or-fun)
+                              (if (stringp path-or-fun)
+                                  (cov--locate-coverage-path file-dir file-name path-or-fun)
+                                (funcall path-or-fun file-dir file-name)))
+                            cov-coverage-file-paths)))
+    (when cov-data
+      (setcar cov-data
+              (file-truename (expand-file-name (car cov-data)
+                                               (file-name-directory file-path)))))
+    cov-data))
 
 (defun cov--locate-coveralls (file-dir _file-name)
   "Locate coveralls coverage from FILE-DIR for FILE-NAME.
