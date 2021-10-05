@@ -90,11 +90,11 @@ or a symbol to be resolved at runtime."
   (with-temp-buffer
     (insert "{\"source_files\":[{\"coverage\":[0,null,3,1,2,0,null],\"source\":\"not covered\\nignored\\ncovered thee times\\ncovered once\\ncovered twice\\nnot covered either\\nignored too\\n\",\"name\":\"test\"}]}")
     (goto-char 1)
-    (setq-local cov-coverage-file "test")
+    (setq-local cov-coverage-file (concat test-path "/coverage-final.json"))
     (should (equal
              (cov--coveralls-parse)
              ;; The coverage is actually returned in reverse order.
-             '(("test" (6 0) (5 2) (4 1) (3 3) (1 0)))))))
+             `((,(concat test-path "/test") (6 0) (5 2) (4 1) (3 3) (1 0)))))))
 
 ;; cov--clover-parse
 (ert-deftest cov--clover-parse--basic-test ()
