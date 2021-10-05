@@ -336,15 +336,19 @@ of (FILE . (LINE-NUM TIMES-RAN))."
         ;; puts the basename in `name' and the full path and filename
         ;; in `path'.
         (let* ((file-name (or (elquery-prop file "path") (elquery-prop file "name")))
-               (common (f-common-parent (list file-name cov-coverage-file)))
                (file-coverage (list)))
+          ;; Only test files have relative paths, probably not a
+          ;; problem in real situations
+          (unless (file-name-absolute-p file-name)
+            (setq file-name
+                  (expand-file-name file-name
+                                    (file-name-directory cov-coverage-file))))
           (dolist (line (elquery-$ "line" file))
             (let ((line-num (string-to-number (elquery-prop line "num")))
                   (line-count (string-to-number (elquery-prop line "count"))))
               (unless (equal line-num 0)
                 (push (list line-num line-count) file-coverage))))
-          ;; Clover uses absolute filenames, so we remove the common prefix.
-          (push (cons (string-remove-prefix common file-name) file-coverage) matches))))
+          (push (cons (file-truename file-name) file-coverage) matches))))
     matches))
 
 (defun cov--coveragepy-parse ()
