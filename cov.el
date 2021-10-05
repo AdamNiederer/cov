@@ -308,14 +308,18 @@ of (FILE . (LINE-NUM TIMES-RAN))."
        (json-array-type 'list)
        (coverage (json-read))
        (matches (list)))
-    (dolist (source (gethash "source_files" coverage))
+    (dolist (source-file (gethash "source_files" coverage))
       (let ((file-coverage (list))
-            (linenum 1))
-        (dolist (count (gethash "coverage" source))
+            (linenum 1)
+            (name (gethash "name" source-file)))
+        (unless (file-name-absolute-p name)
+          (setq name (expand-file-name name
+                                       (file-name-directory cov-coverage-file))))
+        (dolist (count (gethash "coverage" source-file))
           (when count
             (push (list linenum count) file-coverage))
           (setq linenum (+ linenum 1)))
-        (push (cons (gethash "name" source) file-coverage) matches)))
+        (push (cons (file-truename name) file-coverage) matches)))
     matches))
 
 (defun cov--clover-parse ()
