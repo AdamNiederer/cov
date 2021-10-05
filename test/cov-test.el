@@ -27,7 +27,7 @@ or a symbol to be resolved at runtime."
     (setq-local cov-coverage-file "test")
     (should (equal
              (cov--gcov-parse)
-             '(("test"))))))
+             `((,(file-truename (concat default-directory "test"))))))))
 
 (ert-deftest cov--gcov-parse--block-test ()
   (with-temp-buffer
@@ -37,7 +37,7 @@ or a symbol to be resolved at runtime."
     (setq-local cov-coverage-file "test")
     (should (equal
              (cov--gcov-parse)
-             '(("test"))))))
+             `((,(file-truename (concat default-directory "test"))))))))
 
 (ert-deftest cov--gcov-parse--executed-test ()
   (with-temp-buffer
@@ -47,7 +47,7 @@ or a symbol to be resolved at runtime."
     (setq-local cov-coverage-file "test")
     (should (equal
              (cov--gcov-parse)
-             '(("test" (24 6)))))))
+             `((,(file-truename (concat default-directory "test")) (24 6)))))))
 
 (ert-deftest cov--gcov-parse--big-value-test ()
   (with-temp-buffer
@@ -57,7 +57,7 @@ or a symbol to be resolved at runtime."
     (setq-local cov-coverage-file "test")
     (should (equal
              (cov--gcov-parse)
-             '(("test" (99999 999999999)))))))
+             `((,(file-truename (concat default-directory "test")) (99999 999999999)))))))
 
 (ert-deftest cov--gcov-parse--multiline-test ()
   (with-temp-buffer
@@ -67,7 +67,7 @@ or a symbol to be resolved at runtime."
             "       66:    3:")
     (goto-char 1)
     (setq-local cov-coverage-file "test")
-	(let ((expected '(("test" (3 66) (2 16) (1 6))))
+    (let ((expected `((,(file-truename (concat default-directory "test")) (3 66) (2 16) (1 6))))
 		  (result (cov--gcov-parse)))
 	  (should (equal (caar result) (caar expected)))
 	  (ert-info ("Unexpected matches")
@@ -83,7 +83,7 @@ or a symbol to be resolved at runtime."
     (setq-local cov-coverage-file "test")
     (should (equal
              (cov--gcov-parse)
-             '(("test" (24 0)))))))
+             `((,(file-truename (concat default-directory "test")) (24 0)))))))
 
 ;; cov--coveralls-parse
 (ert-deftest cov--coveralls-parse--basic-test ()

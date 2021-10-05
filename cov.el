@@ -283,9 +283,12 @@ Read from `current-buffer' if BUFFER is nil. Return a list
             ;; Do not search further than 1000 characters. The Source
             ;; tag is typically the first line and the file entry
             ;; typically the second.  TODO: Parse the entire header.
-            ;; The Source header always hold a ralative path.
+            ;; The Source header always hold a relative path.
             (when (re-search-forward (rx (or ":Source:" "file:") (group (1+ any))) 1000 t)
-              (setq filename (match-string 1))))))
+              (setq filename
+                    (file-truename
+                     (expand-file-name (match-string 1)
+                                       (file-name-directory cov-coverage-file))))))))
 	  (save-excursion
 		(save-match-data
 		  (goto-char (point-min))
