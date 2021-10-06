@@ -378,7 +378,9 @@ Project coveragepy is released at <https://github.com/nedbat/coveragepy/>."
        (coverage (json-read))
        (matches (list)))
     (maphash (lambda (filename file-value)
-               (push (cons filename
+               (push (cons (file-truename
+                            (expand-file-name filename
+                                              (file-name-directory cov-coverage-file)))
                            (append
                             (mapcar (lambda (line) (list line 1))
                                     (gethash "executed_lines" file-value))
