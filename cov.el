@@ -481,6 +481,8 @@ it if necessary, or reloading if the file has changed."
   (let ((cov (cov--coverage)))
     (when cov
       (let* ((file (car cov))
+             ;; If file is already registered in cov--coverages fetch
+             ;; the data, otherwise register the file with no data.
              (stored-data (cov--stored-data file (cdr cov))))
         ;; Register current buffer as user of this coverage.
         (cov-data--add-buffer stored-data (current-buffer))
@@ -496,14 +498,13 @@ it if necessary, or reloading if the file has changed."
                  '(change)
                  (lambda (event)
                    (cov-watch-callback file event)))))
-        ;; Load coverage if needed.
+        ;; Load coverage from file if needed.
         (cov--load-coverage stored-data file t)
 
         (add-hook 'kill-buffer-hook 'cov-kill-buffer-hook nil t)
         ;; Find file coverage.
-        (let ((common (f-common-parent (list file (buffer-file-name)))))
-          (cdr (assoc (string-remove-prefix common (buffer-file-name))
-                      (cov-data-coverage stored-data))))))))
+        (cdr (assoc (file-truename (buffer-file-name))
+                    (cov-data-coverage stored-data)))))))
 
 (defun cov--load-coverage (coverage file &rest ignore-current)
   "Load coverage data into COVERAGE from FILE.
