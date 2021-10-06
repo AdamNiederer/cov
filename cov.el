@@ -527,6 +527,9 @@ Won't update `(current-buffer)' if IGNORE-CURRENT is non-nil."
     (setf (cov-data-coverage coverage) nil))
   (unless (cov-data-coverage coverage)
     (setf (cov-data-coverage coverage) (cov--read-and-parse file (cov-data-type coverage)))
+    (cl-loop for (srcfile . src-cov-data) in (cov-data-coverage coverage)
+             do (cl-assert (string= srcfile (file-truename srcfile))
+                           "Source files must be truenames"))
     (setf (cov-data-mtime coverage) (cov--file-mtime file))
     ;; Update buffers using this coverage.
     (let ((buffers (cov-data-buffers coverage)))
