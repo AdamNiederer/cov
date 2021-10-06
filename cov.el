@@ -440,8 +440,8 @@ MAX is the maximum coverage count for any line in the file."
 
 ;; Structure for coverage data.
 (cl-defstruct cov-data
-  "Holds data about a coverage data file, which can hold coverage
-data for several source code files."
+  "Holds data about a coverage data file representing one or more source files."
+  (coverage-file nil :type string :documentation "The absolute path of the coverage data file.")
   (type nil :type symbol :documentation "The coverage type, such as `gcov'.")
   (mtime nil :type time :documentation "The mtime for the coverage file last time it was read.")
   (buffers nil :type list :documentation "List of `cov-mode' buffers referring to this coverage data.")
@@ -468,7 +468,7 @@ Return the list of remaining buffers."
   "Get the `cov-data' object for FILE from `cov-coverages'.
 If no object exist, create one with TYPE."
   (or (gethash file cov-coverages)
-      (puthash file (make-cov-data :type type) cov-coverages)))
+      (puthash file (make-cov-data :coverage-file file :type type) cov-coverages)))
 
 (defun cov--get-buffer-coverage ()
   "Return coverage for current buffer.
