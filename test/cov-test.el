@@ -419,7 +419,7 @@ or a symbol to be resolved at runtime."
   :tags '(cov--load-coverage)
   (cov--with-test-buffer "gcov/same-dir/test"
     (let ((coverage (make-cov-data :type 'gcov :buffers (list (current-buffer))))
-          (cov-file (buffer-file-name)))
+          (cov-file (concat (buffer-file-name) ".gcov")))
       (mocker-let ((cov-update () ((:occur 1))))
         (cov--load-coverage coverage cov-file))
       (ert-info ("Some coverage data should have been set")
