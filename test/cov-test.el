@@ -13,16 +13,21 @@
 (defmacro cov--with-test-buffer (testfile &rest body)
   "Open TESTFILE in a buffer, execute BODY in it, and kill the buffer.
 TESTFILE can be an absolute path, a path relative to `test-path',
-or a symbol to be resolved at runtime."
+or a symbol to be resolved at runtime.
+Avoids conflicts with other buffers visiting TESTFILE by visiting
+it in a temporary buffer.  Any changes to the buffer content are
+discarded when the buffer is killed."
   (declare (indent 1) (debug t))
   (let ((testfilepath
          (cond ((and (stringp testfile) (file-name-absolute-p testfile)) testfile)
                ((and (stringp testfile) `(format "%s/%s" test-path ,testfile)))
                ((symbolp testfile) testfile)
                (t (error "Unexpected argument type for `testfile'")))))
-    `(with-current-buffer (find-file-noselect ,testfilepath)
+    `(with-temp-buffer
+       (insert-file-contents ,testfilepath :visit)
        ,@body
-       (kill-buffer))))
+       (set-buffer-modified-p nil)
+       )))
 
 ;; cov--gcov-parse
 (ert-deftest cov--gcov-parse--hyphen-test ()
