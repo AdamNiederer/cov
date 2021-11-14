@@ -290,7 +290,8 @@ or a symbol to be resolved at runtime."
 ;; cov--stored-data
 (ert-deftest cov--stored-data-empty-test ()
   "Test that a single new cov-data struct is added to `cov-coverages'."
-  (let ((cov-coverges (make-hash-table :test 'equal)))
+  :tags '(cov--stored-data)
+  (let ((cov-coverages (make-hash-table :test 'equal)))
     (cov--stored-data "filename" 'gcov)
     (should (equal (hash-table-keys cov-coverages) '("filename")))
     (should (cov-data-p (car (hash-table-values cov-coverages))))
@@ -304,7 +305,8 @@ or a symbol to be resolved at runtime."
 
 (ert-deftest cov--stored-data-same-data-test ()
   "Test that the created data is returned later."
-  (let ((cov-coverges (make-hash-table :test 'equal))
+  :tags '(cov--stored-data)
+  (let ((cov-coverages (make-hash-table :test 'equal))
         data1 data2)
     (cov--stored-data "filename" 'gcov)
     (should (equal (hash-table-keys cov-coverages) '("filename")))
