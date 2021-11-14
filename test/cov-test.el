@@ -449,7 +449,7 @@ discarded when the buffer is killed."
         (ert-info ("mtime field of cov-data struct should be a valid time")
           (should (timep (cov-data-mtime coverage)))))
       (ert-info ("Running again with the same cov-data-mtime should not reload")
-        (mocker-let ((cov--read-and-parse (&rest _) ((:occur 0)))
+        (mocker-let ((cov--read-and-parse (file-path format) ((:occur 0)))
                      (cov-update () ((:occur 0))))
           (cov--load-coverage coverage cov-file )))
         )))
