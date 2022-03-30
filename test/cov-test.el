@@ -108,7 +108,8 @@ discarded when the buffer is killed."
                           (insert-file-contents (concat test-path "/lcov/same-dir/expected.el"))
                           (buffer-string)))))
     (cov--with-test-buffer "lcov/same-dir/lcov.info"
-      (let ((data (cov--lcov-parse)))
+      (let* ((cov-coverage-file (buffer-file-name))
+             (data (cov--lcov-parse)))
         (should (equal data expected))))))
 
 (ert-deftest cov--lcov-parse-bad-file ()
@@ -116,7 +117,12 @@ discarded when the buffer is killed."
   :tags '(cov--lcov-parse)
   (with-temp-buffer
     (insert "dummy data\n")
-    (should-error (cov--lcov-parse (current-buffer)))))
+    (let ((cov-coverage-file "/not/a/real/file/path.info"))
+      (should (equal
+               (should-error (cov--lcov-parse (current-buffer))
+                             :type 'error :exclude-subtypes t)
+               `(error
+                 ,(format "Unable to parse lcov data from %s: dummy data" cov-coverage-file)))))))
 
 (ert-deftest cov--lcov-parse-no-end_of_record ()
   "Test lcov parsing with missing end_of_record."
@@ -124,7 +130,12 @@ discarded when the buffer is killed."
   (cov--with-test-buffer "lcov/same-dir/lcov.info"
     (goto-char 1)
     (delete-matching-lines "end_of_record")
-    (should-error (cov--lcov-parse))))
+    (let ((cov-coverage-file (buffer-file-name)))
+      (should (equal
+               (should-error (cov--lcov-parse) :type 'error :exclude-subtypes t)
+               `(error
+                 ,(format "‘lcov’ parse error, SF with no preceeding end_of_record %s:16"
+                          cov-coverage-file)))))))
 
 ;; cov--coveralls-parse
 (ert-deftest cov--coveralls-parse--basic-test ()
@@ -263,7 +274,7 @@ discarded when the buffer is killed."
     (should (equal actual expected))))
 
 (ert-deftest cov--locate-lcov-file-name-test ()
-  "Verify `cov-lcov-file-name' specifyin an existing file works."
+  "Verify `cov-lcov-file-name' specifying an existing file works."
   :tags '(cov--locate-lcov)
   (cov--with-test-buffer "lcov/same-dir/main.c"
     (let* ((file (file-name-nondirectory (buffer-file-name)))
@@ -284,7 +295,7 @@ discarded when the buffer is killed."
       (should-not (cov--locate-lcov dir file)))))
 
 (ert-deftest cov--locate-lcov-file-patterns-test ()
-  "Verify that the first matchin file pattern in `cov-lcov-patterns' is selected."
+  "Verify that the first matching file pattern in `cov-lcov-patterns' is selected."
   :tags '(cov--locate-lcov)
   (cov--with-test-buffer "lcov/same-dir/main.c"
     (let* ((file (file-name-nondirectory (buffer-file-name)))

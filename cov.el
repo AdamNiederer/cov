@@ -219,7 +219,8 @@ should always be absolute."
 (defvar cov-lcov-patterns '("*.info")
   "List of wildcard patterns or functions for finding a relevant lcov info file.
 Each element can be a file name with wildcards or a function.
-File patterns are expaned in FILE-DIR, absolute file patterns work as expected.
+File patterns are expanded in the directory of the source file,
+absolute file patterns work as expected.
 Functions should take two arguments; FILE-DIR and FILE-NAME where
 FILE-DIR is the folder of the source file and FILE-NAME is the
 source file without directory. Functions should return the
@@ -365,19 +366,19 @@ Return a list `((FILE . ((LINE-NUM EXEC-COUNT) ...)) ...)'."
             (while (not (eobp))
               (unless (looking-at cov--lcov-prefix-re)
                 (error "Unable to parse lcov data from %s: %s"
-                       (or (buffer-file-name) (buffer-name))
+                       cov-coverage-file
                        (buffer-substring (line-beginning-position) (line-end-position))))
               (goto-char (match-end 0))
               (pcase (match-string 1)
                 ;; Each SF signals the start of a new SourceFile.
                 ("SF" (if (or sourcefile filelines)
-                          (error "lcov parse error, SF with no preceeding end_of_record %s:%d"
-                                 (buffer-file-name) (line-number-at-pos (point)))
+                          (error "`lcov' parse error, SF with no preceeding end_of_record %s:%d"
+                                 cov-coverage-file (line-number-at-pos (point)))
                         ;; SF always hold an absolute path
                         (setq sourcefile (file-truename
                                           (expand-file-name
                                            (buffer-substring (point) (line-end-position))
-                                           (file-name-directory (buffer-file-name)))))
+                                           (file-name-directory cov-coverage-file))))
                         (setq filelines
                               (or (gethash sourcefile data)
                                   (puthash sourcefile (make-hash-table :test 'eql) data)))))
@@ -388,8 +389,8 @@ Return a list `((FILE . ((LINE-NUM EXEC-COUNT) ...)) ...)'."
                           (let ((lineno (string-to-number (match-string 1)))
                                 (count (string-to-number (match-string 2))))
                             (puthash lineno (+ (gethash lineno filelines 0) count) filelines))
-                        (error "lcov parse error, bad DA line %s:%d"
-                               (buffer-file-name) (line-number-at-pos (point)))))
+                        (error "`lcov' parse error, bad DA line %s:%d"
+                               cov-coverage-file (line-number-at-pos (point)))))
                 ;; End of coverage data for a source file, push
                 ;; current file information to `data'
                 ("end_of_record" (setq sourcefile nil filelines nil)))
@@ -494,7 +495,8 @@ Project coveragepy is released at <https://github.com/nedbat/coveragepy/>."
     matches))
 
 (defun cov--read-and-parse (file-path format)
-  "Read coverage file FILE-PATH in FORMAT into temp buffer and parse it using `cov--FORMAT-parse'."
+  "Read coverage file FILE-PATH in FORMAT into temp buffer and parse it using `cov--FORMAT-parse'.
+`cov-coverage-file' is set buffer-locally to FILE-PATH."
   (with-temp-buffer
     (insert-file-contents file-path)
     (setq-local cov-coverage-file file-path)
