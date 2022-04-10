@@ -239,7 +239,8 @@ There is no standard basename for lcov tracefiles. Set
   "Check if a PATTERN match a coverage file from FILE-DIR for FILE-NAME.
 If PATTERN is a function return (funcall PATTERN FILE-DIR
 FILE-NAME). Otherwise assume PATTERN is a filename pattern and
-try to expand it in FILE-DIR."
+try to expand it in FILE-DIR.
+Return the name of any found file or nil."
   (if (functionp pattern)
       (funcall pattern file-dir file-name)
     (let ((default-directory file-dir))
@@ -255,7 +256,7 @@ that filename. Otherwise search for the first matching pattern in
     (if (and cov-lcov-file-name (file-exists-p cov-lcov-file-name))
         (setq lcov-file cov-lcov-file-name)
       (setq lcov-file (seq-some (lambda (ptrn)
-                                  (cov--check-pattern ptrn file-dir file-name))
+                                  (cov--lcov-file-p (cov--check-pattern ptrn file-dir file-name)))
                                 cov-lcov-patterns)))
     (when lcov-file (cons lcov-file 'lcov))))
 
@@ -349,6 +350,24 @@ Read from `current-buffer' if BUFFER is nil. Return a list
           (group-n 1 "end_of_record")))
   "Regex for matching the line prefixes of lcov coverage data.")
 
+(defun cov--lcov-file-p (file)
+  "Verify that FILE is a lcov trace file.
+Return FILE if the content of FILE is valid lcov data and only
+valid lcov data, nil otherwise."
+  ;; TODO: This checker could be a lot more thorough. Right now it only
+  ;; checks that each line starts with a valid prefix.
+  (cl-block cov--lcov-file-p
+    (when (and file
+               (file-exists-p file)
+               (< 0 (nth 7 (file-attributes (file-truename file)))))
+      (prog1 file
+        (with-temp-buffer
+          (insert-file-contents file)
+          (goto-char (point-min))
+          (while (not (eobp))
+            (unless (looking-at cov--lcov-prefix-re)
+              (cl-return-from cov--lcov-file-p nil))
+            (forward-line)))))))
 
 (defun cov--lcov-parse (&optional buffer)
   "Parse lcov trace file in BUFFER.
