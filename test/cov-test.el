@@ -319,6 +319,16 @@ discarded when the buffer is killed."
       (should (equal (cons (concat dir "lcov.info") 'lcov)
                      (cov--locate-lcov dir file))))))
 
+(ert-deftest cov--locate-lcov-bad-info ()
+  "In a dir with more than one matching info file, ignore files without lcov trace data."
+  :tags '(cov--locate-lcov)
+  (cov--with-test-buffer "lcov/same-dir/main.c"
+    (let* ((file (file-name-nondirectory (buffer-file-name)))
+           (dir (file-name-directory (buffer-file-name)))
+           (cov-lcov-file-name nil)
+           (cov-lcov-patterns '("bad.info" "lcov.info")))
+      (should (equal (cons (concat dir "lcov.info") 'lcov)
+                     (cov--locate-lcov dir file))))))
 
 ;; cov--coverage
 (ert-deftest cov--coverage-test ()
