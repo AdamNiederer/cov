@@ -6,7 +6,7 @@
 ;; Maintainer: Adam Niederer
 ;; Created: 12 Aug 2016
 
-;; Keywords: coverage gcov c
+;; Keywords: coverage gcov c lcov coveralls clover
 ;; Homepage: https://github.com/AdamNiederer/cov
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "24.4") (f "0.18.2") (s "1.11.0") (elquery))
@@ -390,37 +390,38 @@ Return a list `((FILE . ((LINE-NUM EXEC-COUNT) ...)) ...)'."
             (while (not (eobp))
               (if (looking-at cov--lcov-prefix-re)
                   (goto-char (match-end 0))
-                (error "Unable to parse lcov data from %s: %s"
-                       cov-coverage-file
-                       (buffer-substring (line-beginning-position) (line-end-position))))
+                (cov--warning "Unable to parse lcov data from %s:%d: %s"
+                              cov-coverage-file (line-number-at-pos)
+                              (buffer-substring (line-beginning-position) (line-end-position))))
               (pcase (match-string 1)
                 ;; Each SF signals the start of a new SourceFile.
                 ("SF" (if (or sourcefile filelines)
-                          (error "`lcov' parse error, SF with no preceeding end_of_record %s:%d"
-                                 cov-coverage-file (line-number-at-pos (point))))
-                 ;; SF always hold an absolute path
-                 (setq sourcefile (file-truename
-                                   (expand-file-name
-                                    (buffer-substring (point) (line-end-position))
-                                    (file-name-directory cov-coverage-file))))
-                 (setq filelines
-                       (or (gethash sourcefile data)
-                           (puthash sourcefile (make-hash-table :test 'eql) data))))
+                          (cov--warning
+                           "`lcov' parse error, SF with no preceeding end_of_record %s:%d"
+                           cov-coverage-file (line-number-at-pos))
+                        ;; SF always hold an absolute path
+                        (setq sourcefile (file-truename
+                                          (expand-file-name
+                                           (buffer-substring (point) (line-end-position))
+                                           (file-name-directory cov-coverage-file))))
+                        (setq filelines
+                              (or (gethash sourcefile data)
+                                  (puthash sourcefile (make-hash-table :test 'eql) data)))))
                 ;; DA:<line-num>,<exec-count>[,...]
                 ("DA"
                  (if filelines
                      (if (looking-at (rx (group-n 1 (1+ digit)) ?,
-                                          (group-n 2 (1+ digit))
-                                          (optional ?, (group (* any)))))
-                          (let ((lineno (string-to-number (match-string 1)))
-                                (count (string-to-number (match-string 2))))
-                            (puthash lineno (+ (gethash lineno filelines 0) count) filelines))
-                        (error "`lcov' parse error, bad DA line %s:%d"
-                               cov-coverage-file (line-number-at-pos (point))))
-                   (error "`lcov' parse error, DA line %s:%d without preceeding SF"
-                          cov-coverage-file (line-number-at-pos (point)))))
-                ;; End of coverage data for a source file, push
-                ;; current file information to `data'
+                                         (group-n 2 (1+ digit))
+                                         (optional ?, (group (* any)))))
+                         (let ((lineno (string-to-number (match-string 1)))
+                               (count (string-to-number (match-string 2))))
+                           (puthash lineno (+ (gethash lineno filelines 0) count) filelines))
+                       (cov--warning "`lcov' parse error, bad DA line %s:%d"
+                                     cov-coverage-file (line-number-at-pos)))
+                   (cov--warning "`lcov' parse error, DA line %s:%d without preceeding SF"
+                                 cov-coverage-file (line-number-at-pos))))
+                ;; End of coverage data for a source file, clear the
+                ;; decks for a new SF line
                 ("end_of_record" (setq sourcefile nil filelines nil)))
               (forward-line 1))))))
     ;; TODO: Make it possible - or even mandatory - to use hashes instead of lists
@@ -523,7 +524,8 @@ Project coveragepy is released at <https://github.com/nedbat/coveragepy/>."
     matches))
 
 (defun cov--read-and-parse (file-path format)
-  "Read coverage file FILE-PATH in FORMAT into temp buffer and parse it using `cov--FORMAT-parse'.
+  "Parse coverage file FILE-PATH in FORMAT.
+Load FILE-PATH into temp buffer and parse it using `cov--FORMAT-parse'.
 `cov-coverage-file' is set buffer-locally to FILE-PATH."
   (with-temp-buffer
     (insert-file-contents file-path)

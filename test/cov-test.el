@@ -118,11 +118,10 @@ discarded when the buffer is killed."
   (with-temp-buffer
     (insert "dummy data\n")
     (let ((cov-coverage-file "/not/a/real/file/path.info"))
-      (should (equal
-               (should-error (cov--lcov-parse (current-buffer))
-                             :type 'error :exclude-subtypes t)
-               `(error
-                 ,(format "Unable to parse lcov data from %s: dummy data" cov-coverage-file)))))))
+      (mocker-let ((display-warning
+                    (type message &optional level buffer-name)
+                    ((:input '(cov "Unable to parse lcov data from /not/a/real/file/path.info:1: dummy data" nil nil) :output nil :occur 1))))
+      (should-not (cov--lcov-parse (current-buffer)))))))
 
 (ert-deftest cov--lcov-parse-no-end_of_record ()
   "Test lcov parsing with missing end_of_record."
@@ -130,12 +129,46 @@ discarded when the buffer is killed."
   (cov--with-test-buffer "lcov/same-dir/lcov.info"
     (goto-char 1)
     (delete-matching-lines "end_of_record")
-    (let ((cov-coverage-file (buffer-file-name)))
-      (should (equal
-               (should-error (cov--lcov-parse) :type 'error :exclude-subtypes t)
-               `(error
-                 ,(format "‘lcov’ parse error, SF with no preceeding end_of_record %s:16"
-                          cov-coverage-file)))))))
+    (let ((cov-coverage-file (buffer-file-name))
+          (msg-fmt (format "`lcov' parse error, SF with no preceeding end_of_record %s/lcov/same-dir/lcov.info:%%d" test-path)))
+      (ert-info ((progn "Expect five calls to `display-warning'"))
+        (mocker-let ((display-warning
+                      (type message &optional level buffer-name)
+                      ((:input `(cov ,(format msg-fmt 16) nil nil) :output nil :occur 1)
+                       (:input `(cov ,(format msg-fmt 30) nil nil) :output nil :occur 1)
+                       (:input `(cov ,(format msg-fmt 44) nil nil) :output nil :occur 1)
+                       (:input `(cov ,(format msg-fmt 57) nil nil) :output nil :occur 1)
+                       (:input `(cov ,(format msg-fmt 70) nil nil) :output nil :occur 1))))
+          (should (equal (cov--lcov-parse)
+                         ;; This is the sum of all line counts in lcov.info
+                         '(("/test/lcov/same-dir/extra.c"
+                            (3 2)
+                            (5 12)
+                            (6 48)
+                            (7 282)
+                            (8 242)
+                            (9 3)
+                            (11 1))))))))))
+
+(ert-deftest cov--lcov-parse-da-without-sf ()
+  "Test lcov parsing where DA occurs without preceeding SF."
+  :tags '(cov--lcov-parse)
+  (with-temp-buffer
+    (insert "DA:3,0\n"
+            "SF:/test/lcov/same-dir/extra.c\n"
+            "DA:3,1,D+9fSK6I3QDPStN1zNNHSQ\n"
+            "end_of_record\n"
+            "DA:3,1,D+9fSK6I3QDPStN1zNNHSQ\n")
+    (goto-char 1)
+    (let ((cov-coverage-file "/not/a/real/file/path.info")
+          (msg-fmt "`lcov' parse error, DA line /not/a/real/file/path.info:%d without preceeding SF"))
+      (mocker-let ((display-warning
+                    (type message &optional level buffer-name)
+                    ((:input `(cov ,(format msg-fmt 1) nil nil) :output nil :occur 1)
+                     (:input `(cov ,(format msg-fmt 5) nil nil) :output nil :occur 1))))
+        (should (equal (cov--lcov-parse (current-buffer))
+                       '(("/test/lcov/same-dir/extra.c"
+                          (3 1)))))))))
 
 ;; cov--coveralls-parse
 (ert-deftest cov--coveralls-parse--basic-test ()
