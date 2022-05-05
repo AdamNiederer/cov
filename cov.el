@@ -369,6 +369,11 @@ valid lcov data, nil otherwise."
               (cl-return-from cov--lcov-file-p nil))
             (forward-line)))))))
 
+(defun cov--warning (string &rest args)
+  "Display a `cov' warning.
+Create the message by passing STRING and ARGS to `format'."
+  (display-warning 'cov (apply #'format string args)))
+
 (defun cov--lcov-parse (&optional buffer)
   "Parse lcov trace file in BUFFER.
 Read from `current-buffer' if BUFFER is nil.
