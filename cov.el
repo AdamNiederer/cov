@@ -383,24 +383,24 @@ Return a list `((FILE . ((LINE-NUM EXEC-COUNT) ...)) ...)'."
             (widen)
             (goto-char (point-min))
             (while (not (eobp))
-              (unless (looking-at cov--lcov-prefix-re)
+              (if (looking-at cov--lcov-prefix-re)
+                  (goto-char (match-end 0))
                 (error "Unable to parse lcov data from %s: %s"
                        cov-coverage-file
                        (buffer-substring (line-beginning-position) (line-end-position))))
-              (goto-char (match-end 0))
               (pcase (match-string 1)
                 ;; Each SF signals the start of a new SourceFile.
                 ("SF" (if (or sourcefile filelines)
                           (error "`lcov' parse error, SF with no preceeding end_of_record %s:%d"
-                                 cov-coverage-file (line-number-at-pos (point)))
-                        ;; SF always hold an absolute path
-                        (setq sourcefile (file-truename
-                                          (expand-file-name
-                                           (buffer-substring (point) (line-end-position))
-                                           (file-name-directory cov-coverage-file))))
-                        (setq filelines
-                              (or (gethash sourcefile data)
-                                  (puthash sourcefile (make-hash-table :test 'eql) data)))))
+                                 cov-coverage-file (line-number-at-pos (point))))
+                 ;; SF always hold an absolute path
+                 (setq sourcefile (file-truename
+                                   (expand-file-name
+                                    (buffer-substring (point) (line-end-position))
+                                    (file-name-directory cov-coverage-file))))
+                 (setq filelines
+                       (or (gethash sourcefile data)
+                           (puthash sourcefile (make-hash-table :test 'eql) data))))
                 ;; DA:<line-num>,<exec-count>[,...]
                 ("DA"
                  (if filelines
