@@ -402,14 +402,18 @@ Return a list `((FILE . ((LINE-NUM EXEC-COUNT) ...)) ...)'."
                               (or (gethash sourcefile data)
                                   (puthash sourcefile (make-hash-table :test 'eql) data)))))
                 ;; DA:<line-num>,<exec-count>[,...]
-                ("DA" (if (looking-at (rx (group-n 1 (1+ digit)) ?,
+                ("DA"
+                 (if filelines
+                     (if (looking-at (rx (group-n 1 (1+ digit)) ?,
                                           (group-n 2 (1+ digit))
                                           (optional ?, (group (* any)))))
                           (let ((lineno (string-to-number (match-string 1)))
                                 (count (string-to-number (match-string 2))))
                             (puthash lineno (+ (gethash lineno filelines 0) count) filelines))
                         (error "`lcov' parse error, bad DA line %s:%d"
-                               cov-coverage-file (line-number-at-pos (point)))))
+                               cov-coverage-file (line-number-at-pos (point))))
+                   (error "`lcov' parse error, DA line %s:%d without preceeding SF"
+                          cov-coverage-file (line-number-at-pos (point)))))
                 ;; End of coverage data for a source file, push
                 ;; current file information to `data'
                 ("end_of_record" (setq sourcefile nil filelines nil)))
