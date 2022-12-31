@@ -40,6 +40,7 @@
 (require 'subr-x)
 (require 'filenotify)
 (require 'elquery)
+(require 'color)
 
 (defgroup cov nil
   "The group for everything in cov.el."
@@ -89,6 +90,16 @@ See `fringe-bitmaps' for a full list of options"
   :group 'cov
   :type 'symbol)
 
+(defcustom cov-highlight-lines nil
+  "Hightlight lines."
+  :group 'cov
+  :type 'bool)
+
+(defun cov--get-highlight-color (face)
+  "Return a brighter color from FACE foreground."
+  (let ((color (apply #'color-rgb-to-hsl (color-name-to-rgb (face-foreground face)))))
+    (apply #'color-rgb-to-hex (color-hsl-to-rgb (nth 0 color) (nth 1 color) 0.95))))
+
 (defface cov-heavy-face
   '((((class color)) :foreground "red"))
   "Fringe indicator face used for heavily-run lines See `cov-high-threshold'."
@@ -126,6 +137,47 @@ See `cov-coverage-mode'"
 (defface cov-coverage-not-run-face
   '((((class color)) :foreground "red"))
   "Fringe indicator face used in coverage mode for lines which were not run.
+See `cov-coverage-mode'"
+  :tag "Cov coverage mode not-run face"
+  :group 'cov-faces)
+
+(defface cov-heavy-hl-face
+  `((((class color)) :background ,(cov--get-highlight-color 'cov-heavy-face)))
+  "Hightlight face used for heavily-run lines See `cov-high-threshold'."
+  :tag "Cov heavy-use face"
+  :group 'cov-faces)
+
+(defface cov-med-hl-face
+  `((((class color)) :background ,(cov--get-highlight-color 'cov-med-face)))
+  "Hightlight face used for commonly-run lines See `cov-med-threshold'."
+  :tag "Cov medium-use face"
+  :group 'cov-faces)
+
+(defface cov-light-hl-face
+  `((((class color)) :background ,(cov--get-highlight-color 'cov-light-face)))
+  "Hightlight face used for rarely-run lines.
+
+This face is applied if no other face is applied."
+  :tag "Cov light-use face"
+  :group 'cov-faces)
+
+(defface cov-none-hl-face
+  `((((class color)) :background ,(cov--get-highlight-color 'cov-none-face)))
+  "Hightlight face used for lines which were not run."
+  :tag "Cov never-used face"
+  :group 'cov-faces)
+
+(defface cov-coverage-run-hl-face
+  `((((class color)) :background ,(cov--get-highlight-color 'cov-coverage-run-face)))
+  "Hightlight face used in coverage mode for lines which were run.
+
+See `cov-coverage-mode'"
+  :tag "Cov coverage mode run face"
+  :group 'cov-faces)
+
+(defface cov-coverage-not-run-hl-face
+  `((((class color)) :background ,(cov--get-highlight-color 'cov-coverage-not-run-face)))
+  "Hightlight face used in coverage mode for lines which were not run.
 See `cov-coverage-mode'"
   :tag "Cov coverage mode not-run face"
   :group 'cov-faces)
@@ -552,7 +604,7 @@ Load FILE-PATH into temp buffer and parse it using `cov--FORMAT-parse'.
     (setq-local cov-coverage-file file-path)
     (funcall (intern (concat "cov--"  (symbol-name format) "-parse")))))
 
-(defun cov--make-overlay (line fringe help)
+(defun cov--make-overlay (line fringe help highlight)
   "Create an overlay for the LINE.
 
 Uses the FRINGE and sets HELP as `help-echo'."
@@ -562,6 +614,8 @@ Uses the FRINGE and sets HELP as `help-echo'."
               (make-overlay (point) (line-end-position)))))
     (overlay-put ol 'before-string fringe)
     (overlay-put ol 'help-echo help)
+    (when cov-highlight-lines
+      (overlay-put ol 'face highlight))
     (overlay-put ol 'cov t)
     ol))
 
@@ -572,20 +626,20 @@ Selects the face depending on user preferences and the code's
 execution frequency"
   (cond
    ((and cov-coverage-mode (> percentage 0))
-    'cov-coverage-run-face)
+    '(cov-coverage-run-face . cov-coverage-run-hl-face))
    ((and cov-coverage-mode (= percentage 0))
-    'cov-coverage-not-run-face)
+    '(cov-coverage-not-run-face . cov-coverage-not-run-hl-face))
    ((< cov-high-threshold percentage)
-    'cov-heavy-face)
+    '(cov-heavy-face . cov-heavy-hl-face))
    ((< cov-med-threshold percentage)
-    'cov-med-face)
+    '(cov-med-face . cov-med-hl-face))
    ((> percentage 0)
-    'cov-light-face)
-   (t 'cov-none-face)))
+    '(cov-light-face . cov-light-hl-face))
+   (t '(cov-none-face . cov-none-hl-face))))
 
 (defun cov--get-fringe (percentage)
   "Return the fringe with the correct face for PERCENTAGE."
-  (propertize "f" 'display `(left-fringe ,cov-fringe-symbol ,(cov--get-face percentage))))
+  (propertize "f" 'display `(left-fringe ,cov-fringe-symbol ,(car (cov--get-face percentage)))))
 
 (defun cov--help (n percentage)
   "Return help text for the given N count and PERCENTAGE."
@@ -600,7 +654,8 @@ MAX is the maximum coverage count for any line in the file."
     (cov--make-overlay
      (car line)
      (cov--get-fringe percentage)
-     (cov--help times-executed percentage))))
+     (cov--help times-executed percentage)
+     (cdr (cov--get-face percentage)))))
 
 (defsubst cov--file-mtime (file)
   "Return the last modification time of FILE."
@@ -614,8 +669,8 @@ MAX is the maximum coverage count for any line in the file."
   (mtime nil :type time :documentation "The mtime for the coverage file last time it was read.")
   (buffers nil :type list :documentation "List of `cov-mode' buffers referring to this coverage data.")
   (watcher nil :type watcher :documentation "The file notification watcher.")
-  (coverage nil :type alist :documentation "An alist of (FILE . ((LINE-NUM TIMES-RAN) ...)).")
-  )
+  (coverage nil :type alist :documentation "An alist of (FILE . ((LINE-NUM TIMES-RAN) ...))."))
+
 
 (defsubst cov-data--add-buffer (coverage buffer)
   "Add BUFFER to COVERAGE if it not already there."
