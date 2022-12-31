@@ -141,7 +141,7 @@ COVERAGE-TOOL has created the data.
 Currently the only supported COVERAGE-TOOL is gcov.")
 
 (defvar cov-coverage-file-paths
-  '("." cov--locate-lcov cov--locate-coveralls cov--locate-clover cov--locate-coveragepy)
+  '("." cov--locate-gcov-cmake cov--locate-lcov cov--locate-coveralls cov--locate-clover cov--locate-coveragepy)
   "List of paths or functions returning file paths containing coverage files.
 
 Relative paths:
@@ -259,6 +259,26 @@ that filename. Otherwise search for the first matching pattern in
                                   (cov--lcov-file-p (cov--check-pattern ptrn file-dir file-name)))
                                 cov-lcov-patterns)))
     (when lcov-file (cons lcov-file 'lcov))))
+
+(defun cov--locate-gcov-cmake (file-dir file-name)
+  "Locate a gcov coverage file from FILE-DIR for FILE-NAME.
+This works with CMake-based projects, by constructing the path to the `.gcov'
+file from object file's path extracted from the \"compile_commands.json\"."
+  (when-let* ((root (project-root (project-current)))
+              (compile-commands (expand-file-name "compile_commands.json" root)))
+    (when (file-exists-p compile-commands)
+      (when-let* ((file-cmd (cl-find-if
+                             (lambda (entry)
+                               (equal (file-truename (alist-get 'file entry))
+                                      (expand-file-name file-name file-dir)))
+                             (json-read-file compile-commands)))
+                  (command (alist-get 'command file-cmd))
+                  (directory (alist-get 'directory file-cmd)))
+        (let* ((obj-file (when (string-match
+                                (concat "-o \\(?1:.*" (regexp-quote (concat file-name ".o")) "\\)")
+                                command)
+                           (match-string-no-properties 1 command))))
+          (cons (expand-file-name (file-name-with-extension obj-file ".gcov") directory) 'gcov))))))
 
 (defun cov--locate-coveralls (file-dir _file-name)
   "Locate coveralls coverage from FILE-DIR for FILE-NAME.
