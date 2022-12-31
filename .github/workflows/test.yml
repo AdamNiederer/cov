@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    paths-ignore:
+    - '**.md'
+    - 'tools/*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      matrix:
+        emacs_version:
+          - 25.1
+          - 25.2
+          - 25.3
+          - 26.1
+          - 26.2
+          - 26.3
+          - 27.1
+          - 27.2
+          - 28.1
+        experimental: [false]
+        include:
+          - emacs_version: snapshot
+            experimental: true
+    steps:
+    - uses: purcell/setup-emacs@master
+      with:
+        version: ${{ matrix.emacs_version }}
+
+    - uses: actions/checkout@v1
+    - name: Run tests
+      run: |
+        export PATH="$HOME/bin:$PATH"
+        wget 'https://raw.githubusercontent.com/flycheck/emacs-travis/master/emacs-travis.mk'
+        make -f emacs-travis.mk install_cask
+        cask install
+        GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} cask exec ert-runner
+      shell: bash -ev {0}
+
