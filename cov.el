@@ -181,7 +181,7 @@ current directory:
   "Return full path of coverage file, if found.
 
 Look in FILE-DIR for FILE-NAME, under PATH, with extension EXTENSION."
-  (let ((try (format "%s/%s/%s%s" file-dir path file-name extension)))
+  (let ((try (expand-file-name (format "%s/%s%s" path file-name extension) file-dir)))
     (and (file-exists-p try) (file-truename try))))
 
 (defun cov--locate-coverage-path (file-dir file-name path)
