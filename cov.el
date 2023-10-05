@@ -160,12 +160,12 @@ example sets a lambda that searches the coverage file in the
 current directory:
 
   (setq cov-coverage-file-paths
-   (list #'(lambda (file-dir file-name)
+    (list (lambda (file-dir file-name)
              (let ((try (format \"%s/%s%s\"
                                 file-dir file-name
                                 cov-coverage-file-extension)))
                (and (file-exists-p try)
-                    (cons (file-truename try) 'gcov))))))")
+                    (cons (file-truename try) \='gcov))))))")
 
 (defvar-local cov-coverage-file nil
   "Last located coverage file and tool.")
