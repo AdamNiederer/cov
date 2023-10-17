@@ -141,7 +141,7 @@ COVERAGE-TOOL has created the data.
 Currently the only supported COVERAGE-TOOL is gcov.")
 
 (defvar cov-coverage-file-paths
-  '("." cov--locate-lcov cov--locate-coveralls cov--locate-clover cov--locate-coveragepy)
+  '("." cov--locate-gcov-cmake cov--locate-lcov cov--locate-coveralls cov--locate-clover cov--locate-coveragepy)
   "List of paths or functions returning file paths containing coverage files.
 
 Relative paths:
@@ -260,6 +260,39 @@ that filename. Otherwise search for the first matching pattern in
                                 cov-lcov-patterns)))
     (when lcov-file (cons lcov-file 'lcov))))
 
+(defun cov--locate-gcov-cmake (file-dir file-name)
+  "Locate a gcov coverage file from FILE-DIR for FILE-NAME.
+This works with CMake-based projects, by constructing the path to the `.gcov'
+file from object file's path extracted from the \"compile_commands.json\"."
+  (let* ((root (project-root (project-current)))
+         (compile-commands (and root (expand-file-name "compile_commands.json" root))))
+    (when (and compile-commands (file-exists-p compile-commands))
+      (let* ((file-cmd (cl-find-if
+                        (lambda (entry)
+                          (equal (file-truename (cdr (assq 'file entry)))
+                                 (expand-file-name file-name file-dir)))
+                        (json-read-file compile-commands)))
+             (command (cdr (assq 'command file-cmd)))
+             (directory (cdr (assq 'directory file-cmd))))
+        (when file-cmd
+          ;; Supposing file-name is "main.cpp", we will construct a regexp that matches "main.cpp.o" or "main.o".
+          (let* ((case-fold-search nil)
+                 (obj-file (when (string-match
+                                  (concat
+                                   " -o[ ]*\\(?1:.*"
+                                   (regexp-quote (file-name-sans-extension file-name))
+                                   "\\(?:\\."
+                                   (file-name-extension file-name)
+                                   "\\)?"
+                                   "\\.o\\)")
+                                  command)
+                             (match-string-no-properties 1 command)))
+                 (gcov-file (expand-file-name (file-name-with-extension obj-file ".gcov") directory)))
+            ;; If file doesn't exists, return nil, so we can try other paths/functions
+            ;; from `cov-coverage-file-paths'
+            (when (file-exists-p gcov-file)
+              (cons gcov-file 'gcov))))))))
+
 (defun cov--locate-coveralls (file-dir _file-name)
   "Locate coveralls coverage from FILE-DIR for FILE-NAME.
 
@@ -301,17 +334,17 @@ Read from `current-buffer' if BUFFER is nil. Return a list
 `((FILE . ((LINE-NUM TIMES-RAN) ...)))'. Unused lines (TIMES-RAN
 '-') are filtered out."
   (with-current-buffer (or buffer (current-buffer))
-	;; The buffer is _not_ automatically widened. It is possible to
-	;; read just a portion of the buffer by narrowing it first.
-	(let ((line-re (rx line-start
-					   ;; note the group numbers are in reverse order
-					   ;; in the first alternative
-					   (or (seq (* blank) (group-n 2 (+ (in digit ?#))) ?:
-								(* blank) (group-n 1 (+ digit)) ?:)
-						   (seq "lcount:" (group-n 1 (+ digit)) ?, (group-n 2 (+ digit))))))
-		  ;; Derive the name of the covered file from the filename of
-		  ;; the coverage file.
-		  (filename (file-name-sans-extension (f-filename cov-coverage-file))))
+    ;; The buffer is _not_ automatically widened. It is possible to
+    ;; read just a portion of the buffer by narrowing it first.
+    (let ((line-re (rx line-start
+                       ;; note the group numbers are in reverse order
+                       ;; in the first alternative
+                       (or (seq (* blank) (group-n 2 (+ (in digit ?#))) ?:
+                                (* blank) (group-n 1 (+ digit)) ?:)
+                           (seq "lcount:" (group-n 1 (+ digit)) ?, (group-n 2 (+ digit))))))
+          ;; Derive the name of the covered file from the filename of
+          ;; the coverage file.
+          (filename (file-name-sans-extension (f-filename cov-coverage-file))))
       ;; Replace the filename with the one from the file preamble
       ;; `Source' tag or `file' line in the intermediate format.
       ;; TODO: The intermediate format actually support multiple
@@ -333,14 +366,14 @@ Read from `current-buffer' if BUFFER is nil. Return a list
                     (file-truename
                      (expand-file-name (match-string 1)
                                        (file-name-directory cov-coverage-file))))))))
-	  (save-excursion
-		(save-match-data
-		  (goto-char (point-min))
-		  (list (cons filename
-					  (cl-loop
-					   while (re-search-forward line-re nil t)
-					   collect (list (string-to-number (match-string 1))
-									 (string-to-number (match-string 2)))))))))))
+      (save-excursion
+        (save-match-data
+          (goto-char (point-min))
+          (list (cons filename
+                      (cl-loop
+                       while (re-search-forward line-re nil t)
+                       collect (list (string-to-number (match-string 1))
+                                     (string-to-number (match-string 2)))))))))))
 
 (defconst cov--lcov-prefix-re
   (rx line-start
