@@ -235,6 +235,11 @@ thean one file, the first value will be returned.")
 There is no standard basename for lcov tracefiles. Set
 `cov-lcov-file-name' locally for the project.")
 
+(defvar cov-lcov-project-root nil
+  "Define the root directory for which to construct the relative paths used
+  inside the lcov file. Useful when the lcov file is not located in the root of
+  the project.")
+
 (defun cov--check-pattern (pattern file-dir file-name)
   "Check if a PATTERN match a coverage file from FILE-DIR for FILE-NAME.
 If PATTERN is a function return (funcall PATTERN FILE-DIR
@@ -399,11 +404,12 @@ Return a list `((FILE . ((LINE-NUM EXEC-COUNT) ...)) ...)'."
                           (cov--warning
                            "`lcov' parse error, SF with no preceeding end_of_record %s:%d"
                            cov-coverage-file (line-number-at-pos))
-                        ;; SF always hold an absolute path
                         (setq sourcefile (file-truename
                                           (expand-file-name
                                            (buffer-substring (point) (line-end-position))
-                                           (file-name-directory cov-coverage-file))))
+                                           (or cov-lcov-project-root
+                                               (file-name-directory cov-coverage-file)))))
+                        (message (concat "sourcefile: " sourcefile))
                         (setq filelines
                               (or (gethash sourcefile data)
                                   (puthash sourcefile (make-hash-table :test 'eql) data)))))
